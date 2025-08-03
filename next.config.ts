@@ -11,10 +11,6 @@ const nextConfig: NextConfig = {
     unoptimized: process.env.NODE_ENV === 'development'
   },
   
-  // Enable experimental features
-  experimental: {
-    serverActions: true,
-  },
   
   // Handle subdomain routing
   async rewrites() {

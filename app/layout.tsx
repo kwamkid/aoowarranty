@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Sans_Thai } from 'next/font/google'
 import './globals.css'
 
@@ -8,6 +8,12 @@ const ibmPlexSansThai = IBM_Plex_Sans_Thai({
   variable: '--font-ibm-plex-sans-thai',
   display: 'swap',
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#ef4444',
+}
 
 export const metadata: Metadata = {
   title: 'WarrantyHub - ระบบลงทะเบียนรับประกันสินค้า',
@@ -30,8 +36,6 @@ export const metadata: Metadata = {
     title: 'WarrantyHub - ระบบลงทะเบียนรับประกันสินค้า',
     description: 'ระบบลงทะเบียนรับประกันสินค้าออนไลน์ที่ทันสมัย',
   },
-  viewport: 'width=device-width, initial-scale=1',
-  themeColor: '#ef4444',
 }
 
 export default function RootLayout({
