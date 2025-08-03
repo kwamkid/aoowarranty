@@ -70,6 +70,32 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
 
+  // Get tenant from URL for navigation
+  const getTenantPrefix = () => {
+    const pathSegments = pathname.split('/')
+    if (pathSegments[1] && pathSegments[1] !== 'admin') {
+      return pathSegments[1] // e.g., "abc-shop"
+    }
+    return ''
+  }
+
+  const tenant = getTenantPrefix()
+
+  // Build href with tenant prefix
+  const buildHref = (path: string) => {
+    return tenant ? `/${tenant}${path}` : path
+  }
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/me', { method: 'DELETE' })
+      window.location.href = tenant ? `/${tenant}` : '/'
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-secondary-50">
       {/* Mobile Sidebar Overlay */}
@@ -110,12 +136,13 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         <nav className="mt-6 px-3">
           <ul className="space-y-1">
             {sidebarItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+              const href = buildHref(item.href)
+              const isActive = pathname === href || (item.href !== '/admin' && pathname.startsWith(href))
               
               return (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={href}
                     className={cn(
                       "flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200",
                       isActive
@@ -136,7 +163,7 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         {/* Customer Site Link */}
         <div className="absolute bottom-6 left-3 right-3">
           <Link
-            href="/"
+            href={buildHref('/')}
             className="flex items-center px-3 py-3 text-sm font-medium text-secondary-300 hover:bg-secondary-700 hover:text-white rounded-lg transition-colors duration-200"
           >
             <Home className="w-5 h-5 mr-3" />
@@ -219,14 +246,17 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
                 {/* Dropdown Menu */}
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   <div className="py-2">
-                    <Link href="/admin/profile" className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50">
+                    <Link href={buildHref('/admin/profile')} className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50">
                       ข้อมูลส่วนตัว
                     </Link>
-                    <Link href="/admin/settings" className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50">
+                    <Link href={buildHref('/admin/settings')} className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50">
                       ตั้งค่า
                     </Link>
                     <hr className="my-1 border-secondary-200" />
-                    <button className="w-full text-left px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 flex items-center">
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 flex items-center"
+                    >
                       <LogOut className="w-4 h-4 mr-2" />
                       ออกจากระบบ
                     </button>

@@ -48,15 +48,15 @@ export default async function TenantHomePage() {
       </header>
 
       {/* Hero Section - Mobile First */}
-      <section className="px-4 py-8 sm:py-12 md:py-16">
+      <section className="px-4 py-20 sm:py-12 md:py-16">
         <div className="max-w-2xl mx-auto text-center">
           {/* Welcome Badge */}
-          <div className="inline-flex items-center bg-primary-100 text-primary-700 text-xs sm:text-sm font-medium px-3 py-1 rounded-full mb-4">
+          <div className="inline-flex items-center bg-primary-100 text-primary-700 text-xs sm:text-sm font-medium px-3 py-3 rounded-full mb-4">
             <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
             ลงทะเบียนง่าย ผ่าน LINE
           </div>
           
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-secondary-900 mb-3 sm:mb-4 leading-tight">
+          <h2 className="text-4xl sm:text-4xl md:text-5xl font-bold text-secondary-900 mb-3 sm:mb-4 leading-tight">
             ลงทะเบียนรับประกัน
             <br />
             <span className="text-primary-500">สินค้าออนไลน์</span>

@@ -84,8 +84,11 @@ export function middleware(request: NextRequest) {
     // Map tenant routes to internal pages
     if (url.pathname === '/') {
       url.pathname = '/tenant'
+    } else if (url.pathname === '/login') {
+      url.pathname = '/tenant/login'
     } else if (url.pathname.startsWith('/admin')) {
-      url.pathname = `/tenant${url.pathname}`
+      // Admin routes require auth check
+      url.pathname = `/tenant/admin${url.pathname.slice(6)}`
     } else if (url.pathname === '/register') {
       url.pathname = '/tenant/register'
     } else if (url.pathname === '/my-warranties') {
