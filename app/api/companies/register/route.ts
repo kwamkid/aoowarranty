@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb, adminStorage } from '@/lib/firebase-admin'
 import { generateId, createSlug, isValidSlug } from '@/lib/utils'
+import { hashPassword } from '@/lib/crypto-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
       email: companyData.email, // ใช้อีเมลเดียวกับบริษัท
       name: companyData.adminName,
       role: 'admin',
-      password: companyData.adminPassword, // In production, this should be hashed
+      passwordHash: hashPassword(companyData.adminPassword), // Hash password
       isActive: true,
       createdAt: new Date(),
       createdBy: 'system',

@@ -4,6 +4,7 @@ import { adminDb } from '@/lib/firebase-admin'
 import { headers } from 'next/headers'
 import { cookies } from 'next/headers'
 import { generateId } from '@/lib/utils'
+import { verifyPassword } from '@/lib/crypto-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,8 +84,36 @@ export async function POST(request: NextRequest) {
     const userDoc = usersSnapshot.docs[0]
     const userData = userDoc.data()
     
-    // Check password (in production, use proper hashing)
-    if (userData.password !== password) {
+    // Check password with hash
+    let passwordMatch = false
+    
+    if (userData.passwordHash) {
+      // User has hashed password
+      passwordMatch = verifyPassword(password, userData.passwordHash)
+      console.log('Checking hashed password')
+    } else if (userData.password) {
+      // Old user with plain text password
+      passwordMatch = userData.password === password
+      console.log('Checking plain text password (legacy)')
+      
+      // Optional: Auto-migrate to hashed password
+      if (passwordMatch) {
+        try {
+          const { hashPassword } = await import('@/lib/crypto-utils')
+          await adminDb.collection('users').doc(userDoc.id).update({
+            passwordHash: hashPassword(password),
+            password: null // Remove plain text password
+          })
+          console.log('Auto-migrated password to hash')
+        } catch (error) {
+          console.error('Error migrating password:', error)
+        }
+      }
+    } else {
+      console.log('User has no password set')
+    }
+    
+    if (!passwordMatch) {
       console.log('Invalid password')
       return NextResponse.json({
         success: false,

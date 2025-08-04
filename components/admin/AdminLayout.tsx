@@ -250,17 +250,15 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
               {companyInfo && (
                 <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-secondary-50 rounded-lg">
                   {companyInfo.logo ? (
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-secondary-200">
-                      <Image
+                    <div className="w-6 h-6 rounded overflow-hidden bg-secondary-200 flex-shrink-0">
+                      <img
                         src={companyInfo.logo}
                         alt={companyInfo.name}
-                        width={24}
-                        height={24}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     </div>
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-secondary-300 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded bg-secondary-300 flex items-center justify-center flex-shrink-0">
                       <Building2 className="w-3 h-3 text-secondary-600" />
                     </div>
                   )}
