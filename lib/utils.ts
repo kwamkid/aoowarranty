@@ -8,9 +8,46 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Date utilities
-export function formatDate(date: Date | string, formatStr: string = 'dd/MM/yyyy'): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date
-  return format(dateObj, formatStr)
+export function formatDate(date: Date | string | any, formatStr: string = 'dd/MM/yyyy'): string {
+  try {
+    let dateObj: Date
+    
+    // Handle Firestore Timestamp
+    if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+      dateObj = date.toDate()
+    }
+    // Handle Firestore Timestamp-like object (from server)
+    else if (date && typeof date === 'object' && '_seconds' in date) {
+      dateObj = new Date(date._seconds * 1000)
+    }
+    // Handle string date
+    else if (typeof date === 'string') {
+      dateObj = new Date(date)
+    }
+    // Handle Date object
+    else if (date instanceof Date) {
+      dateObj = date
+    }
+    // Handle null/undefined
+    else if (!date) {
+      return '-'
+    }
+    // Default case
+    else {
+      dateObj = new Date(date)
+    }
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) {
+      console.warn('Invalid date:', date)
+      return '-'
+    }
+    
+    return format(dateObj, formatStr)
+  } catch (error) {
+    console.error('Error formatting date:', date, error)
+    return '-'
+  }
 }
 
 export function calculateWarrantyExpiry(
@@ -43,6 +80,41 @@ export function getDaysUntilExpiry(expiryDate: string): number {
   const today = new Date()
   const diffTime = expiry.getTime() - today.getTime()
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+}
+
+export function getTimeUntilExpiry(expiryDate: string): string {
+  const expiry = new Date(expiryDate)
+  const today = new Date()
+  const diffTime = expiry.getTime() - today.getTime()
+  const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (totalDays < 0) {
+    return 'หมดอายุแล้ว'
+  }
+  
+  if (totalDays === 0) {
+    return 'วันนี้'
+  }
+  
+  const years = Math.floor(totalDays / 365)
+  const months = Math.floor((totalDays % 365) / 30)
+  const days = totalDays % 30
+  
+  const parts = []
+  
+  if (years > 0) {
+    parts.push(`${years} ปี`)
+  }
+  
+  if (months > 0) {
+    parts.push(`${months} เดือน`)
+  }
+  
+  if (days > 0 || parts.length === 0) {
+    parts.push(`${days} วัน`)
+  }
+  
+  return parts.join(' ')
 }
 
 // Slug utilities

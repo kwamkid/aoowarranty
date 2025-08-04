@@ -18,7 +18,7 @@ import {
   FileText,
   Building2
 } from 'lucide-react'
-import { formatDate, isWarrantyActive, getDaysUntilExpiry } from '@/lib/utils'
+import { formatDate, isWarrantyActive, getDaysUntilExpiry, getTimeUntilExpiry } from '@/lib/utils'
 import CustomerHeader from '@/components/customer/CustomerHeader'
 
 // Define warranty type
@@ -111,6 +111,7 @@ export default async function WarrantyDetailPage({
   // Calculate warranty status
   const isActive = isWarrantyActive(warranty.warrantyExpiry)
   const daysUntilExpiry = getDaysUntilExpiry(warranty.warrantyExpiry)
+  const timeUntilExpiry = getTimeUntilExpiry(warranty.warrantyExpiry)
   const isNearExpiry = isActive && daysUntilExpiry <= 30
   
   return (
@@ -181,7 +182,7 @@ export default async function WarrantyDetailPage({
                   isActive ? (isNearExpiry ? 'text-orange-700' : 'text-green-700')
                           : 'text-red-700'
                 }`}>
-                  {isActive ? `เหลืออีก ${daysUntilExpiry} วัน` 
+                  {isActive ? `เหลืออีก ${timeUntilExpiry}` 
                            : `หมดอายุเมื่อ ${formatDate(warranty.warrantyExpiry, 'dd/MM/yyyy')}`}
                 </p>
               </div>

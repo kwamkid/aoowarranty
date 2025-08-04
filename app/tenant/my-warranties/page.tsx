@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   FileText
 } from 'lucide-react'
-import { formatDate, isWarrantyActive, getDaysUntilExpiry } from '@/lib/utils'
+import { formatDate, isWarrantyActive, getDaysUntilExpiry, getTimeUntilExpiry } from '@/lib/utils'
 import CustomerHeader from '@/components/customer/CustomerHeader'
 
 async function getCustomerWarranties(customerId: string, companyId: string) {
@@ -105,6 +105,7 @@ export default async function MyWarrantiesPage() {
             {warranties.map((warranty: any) => {
               const isActive = isWarrantyActive(warranty.warrantyExpiry)
               const daysUntilExpiry = getDaysUntilExpiry(warranty.warrantyExpiry)
+              const timeUntilExpiry = getTimeUntilExpiry(warranty.warrantyExpiry)
               const isNearExpiry = isActive && daysUntilExpiry <= 30
               
               return (
@@ -156,8 +157,8 @@ export default async function MyWarrantiesPage() {
                           isNearExpiry ? (
                             <div className="flex flex-col items-center">
                               <AlertTriangle className="w-6 h-6 text-orange-500 mb-1" />
-                              <span className="text-xs text-orange-600 font-medium">
-                                {daysUntilExpiry} วัน
+                              <span className="text-xs text-orange-600 font-medium text-center">
+                                {timeUntilExpiry}
                               </span>
                             </div>
                           ) : (

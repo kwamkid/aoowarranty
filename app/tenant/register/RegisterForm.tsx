@@ -101,13 +101,12 @@ export default function RegisterForm({
     }
   })
   
-  // Watch for brand and product changes
-  const watchBrand = watch('brandId')
+  // Watch for changes
   const watchProduct = watch('productId')
   const watchPurchaseDate = watch('purchaseDate')
   
-  // Filter products by brand
-  const filteredProducts = products.filter(p => p.brandId === watchBrand)
+  // Filter products by selected brand
+  const filteredProducts = selectedBrand ? products.filter(p => p.brandId === selectedBrand) : []
   
   // Update warranty expiry when product or date changes
   useEffect(() => {
@@ -124,14 +123,20 @@ export default function RegisterForm({
   // Handle brand change
   const handleBrandChange = (brandId: string) => {
     setSelectedBrand(brandId)
-    setValue('productId', '')
+    setValue('productId', '') // Reset product selection
     setSelectedProduct(null)
+    setWarrantyExpiry('') // Clear warranty expiry
   }
   
   // Handle product change
   const handleProductChange = (productId: string) => {
     const product = products.find(p => p.id === productId)
     setSelectedProduct(product)
+    
+    // Clear warranty expiry if no product selected
+    if (!product) {
+      setWarrantyExpiry('')
+    }
   }
   
   // Handle receipt upload
@@ -242,25 +247,33 @@ export default function RegisterForm({
         </div>
         
         {/* Product Selection */}
-        {watchBrand && (
+        {selectedBrand && (
           <div>
             <label className="block text-sm font-medium text-secondary-700 mb-2">
               สินค้า *
             </label>
-            <select
-              {...register('productId')}
-              onChange={(e) => handleProductChange(e.target.value)}
-              className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">เลือกสินค้า</option>
-              {filteredProducts.map(product => (
-                <option key={product.id} value={product.id}>
-                  {product.name} {product.model && `(${product.model})`}
-                </option>
-              ))}
-            </select>
-            {errors.productId && (
-              <p className="text-red-600 text-sm mt-1">{errors.productId.message}</p>
+            {filteredProducts.length > 0 ? (
+              <>
+                <select
+                  {...register('productId')}
+                  onChange={(e) => handleProductChange(e.target.value)}
+                  className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">เลือกสินค้า</option>
+                  {filteredProducts.map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} {product.model && `- ${product.model}`}
+                    </option>
+                  ))}
+                </select>
+                {errors.productId && (
+                  <p className="text-red-600 text-sm mt-1">{errors.productId.message}</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-red-600">
+                ไม่มีสินค้าในแบรนด์นี้
+              </p>
             )}
           </div>
         )}
@@ -286,8 +299,14 @@ export default function RegisterForm({
                   </p>
                 )}
                 <p className="text-sm text-primary-600 mt-1">
-                  ประกัน: {selectedProduct.warrantyYears} ปี
-                  {selectedProduct.warrantyMonths > 0 && ` ${selectedProduct.warrantyMonths} เดือน`}
+                  ประกัน: {selectedProduct.warrantyYears > 0 || selectedProduct.warrantyMonths > 0 ? (
+                    <>
+                      {selectedProduct.warrantyYears > 0 && `${selectedProduct.warrantyYears} ปี`}
+                      {selectedProduct.warrantyMonths > 0 && ` ${selectedProduct.warrantyMonths} เดือน`}
+                    </>
+                  ) : (
+                    <span className="text-secondary-500">ไม่ระบุ</span>
+                  )}
                 </p>
               </div>
             </div>
@@ -362,7 +381,7 @@ export default function RegisterForm({
           )}
           
           {/* Warranty Expiry Display */}
-          {warrantyExpiry && (
+          {warrantyExpiry && selectedProduct && (
             <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-700 flex items-center">
                 <CheckCircle className="w-4 h-4 mr-2" />

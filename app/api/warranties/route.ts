@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminDb, adminStorage } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
 import { generateId } from '@/lib/utils'
+import { FieldValue } from 'firebase-admin/firestore'
 
 // Get customer session
 async function getCustomerSession() {
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     const warrantiesSnapshot = await adminDb
       .collection('warranties')
       .where('customerId', '==', session.customerId)
+      .where('companyId', '==', session.companyId)
       .orderBy('registrationDate', 'desc')
       .get()
     
@@ -170,15 +172,44 @@ export async function POST(request: NextRequest) {
     
     await adminDb.collection('warranties').doc(warrantyId).set(warranty)
     
-    // Update customer's warranty list
-    await adminDb.collection('customers').doc(session.customerId).update({
-      warranties: adminDb.FieldValue.arrayUnion(warrantyId)
-    })
+    // Update customer's warranty list (if customer document exists)
+    try {
+      const customerDoc = await adminDb.collection('customers').doc(session.customerId).get()
+      
+      if (customerDoc.exists) {
+        // Update existing customer
+        await adminDb.collection('customers').doc(session.customerId).update({
+          warranties: FieldValue.arrayUnion(warrantyId),
+          lastActivity: new Date()
+        })
+      } else {
+        // Create customer document if not exists
+        await adminDb.collection('customers').doc(session.customerId).set({
+          companyId: warrantyData.companyId,
+          lineUserId: session.lineUserId,
+          displayName: session.displayName,
+          pictureUrl: session.pictureUrl || '',
+          email: warrantyData.email || '',
+          phone: warrantyData.phone,
+          warranties: [warrantyId],
+          createdAt: new Date(),
+          lastActivity: new Date()
+        })
+      }
+    } catch (customerError) {
+      console.error('Error updating customer:', customerError)
+      // Continue even if customer update fails
+    }
     
     // Update company stats
-    await adminDb.collection('companies').doc(warrantyData.companyId).update({
-      totalWarranties: adminDb.FieldValue.increment(1)
-    })
+    try {
+      await adminDb.collection('companies').doc(warrantyData.companyId).update({
+        totalWarranties: FieldValue.increment(1)
+      })
+    } catch (statsError) {
+      console.error('Error updating company stats:', statsError)
+      // Continue even if stats update fails
+    }
     
     return NextResponse.json({
       success: true,
