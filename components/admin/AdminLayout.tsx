@@ -101,7 +101,7 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
       setLoggingOut(true)
       
       // Call logout API with tenant in path
-      const response = await fetch(`/${tenant}/api/auth/me`, { 
+      const response = await fetch(`/api/auth/me`, { 
         method: 'DELETE',
         credentials: 'include'
       })

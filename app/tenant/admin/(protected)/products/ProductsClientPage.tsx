@@ -188,104 +188,100 @@ export default function ProductsClientPage({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="card hover:shadow-lg transition-shadow relative">
+            <div key={product.id} className="card hover:shadow-lg transition-shadow relative overflow-hidden">
               {deleting === product.id && (
                 <div className="absolute inset-0 bg-white bg-opacity-75 rounded-xl flex items-center justify-center z-20">
                   <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
                 </div>
               )}
               
-              <div className="space-y-4">
-                {/* Product Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4 flex-1">
-                    {/* Product Image */}
-                    <div className="w-20 h-20 rounded-lg bg-secondary-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {product.image ? (
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          width={80}
-                          height={80}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Package className="w-10 h-10 text-secondary-400" />
-                      )}
-                    </div>
-                    
-                    {/* Product Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-secondary-900 truncate">
-                        {product.name}
-                      </h3>
-                      <p className="text-sm text-secondary-600 mt-1">
-                        รุ่น: {product.model}
-                      </p>
-                      <div className="flex items-center space-x-2 mt-2">
-                        <Building2 className="w-4 h-4 text-secondary-400" />
-                        <span className="text-sm text-secondary-600">
-                          {product.brandName}
-                        </span>
-                      </div>
-                    </div>
+              {/* Product Header with Image */}
+              <div className="flex items-start gap-4 mb-4">
+                {/* Product Image */}
+                <div className="w-20 h-20 rounded-lg bg-secondary-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Package className="w-10 h-10 text-secondary-400" />
+                  )}
+                </div>
+                
+                {/* Product Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-secondary-900 text-sm sm:text-base line-clamp-1">
+                    {product.name}
+                  </h3>
+                  {product.model && (
+                    <p className="text-xs sm:text-sm text-secondary-600 mt-0.5 line-clamp-1">
+                      รุ่น: {product.model}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-secondary-400 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm text-secondary-600 line-clamp-1">
+                      {product.brandName}
+                    </span>
                   </div>
+                </div>
+                
+                {/* Actions Dropdown */}
+                <div className="relative group">
+                  <button className="p-1.5 hover:bg-secondary-100 rounded-lg transition-colors">
+                    <MoreVertical className="w-4 h-4 text-secondary-600" />
+                  </button>
                   
-                  {/* Actions Dropdown */}
-                  <div className="relative group">
-                    <button className="p-1 hover:bg-secondary-100 rounded-lg transition-colors">
-                      <MoreVertical className="w-5 h-5 text-secondary-600" />
+                  <div className="absolute right-0 mt-1 w-40 bg-white border border-secondary-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                    <Link
+                      href={`/${tenant}/admin/products/${product.id}/edit`}
+                      className="flex items-center px-3 py-2 text-xs sm:text-sm text-secondary-700 hover:bg-secondary-50"
+                    >
+                      <Edit className="w-3.5 h-3.5 mr-2" />
+                      แก้ไข
+                    </Link>
+                    <button
+                      className="w-full flex items-center px-3 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      onClick={() => handleDelete(product.id, product.name)}
+                      disabled={product.warrantyCount && product.warrantyCount > 0}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                      ลบ
                     </button>
-                    
-                    <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                      <Link
-                        href={`/${tenant}/admin/products/${product.id}/edit`}
-                        className="flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        แก้ไข
-                      </Link>
-                      <button
-                        className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-                        onClick={() => handleDelete(product.id, product.name)}
-                        disabled={product.warrantyCount && product.warrantyCount > 0}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        ลบ
-                      </button>
-                    </div>
                   </div>
                 </div>
-                
-                {/* Warranty Info */}
-                <div className="bg-secondary-50 p-3 rounded-lg">
-                  <div className="flex items-center space-x-2 text-sm">
-                    <Calendar className="w-4 h-4 text-secondary-500" />
-                    <span className="text-secondary-700">
-                      ประกัน: {getWarrantyPeriod(product.warrantyYears, product.warrantyMonths)}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Registration Count */}
-                <div className="flex items-center justify-between pt-4 border-t border-secondary-100">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4 text-secondary-400" />
-                    <span className="text-sm text-secondary-600">
-                      {product.warrantyCount || 0} การลงทะเบียน
-                    </span>
-                  </div>
-                  
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    product.isActive 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-secondary-100 text-secondary-600'
-                  }`}>
-                    {product.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}
+              </div>
+              
+              {/* Warranty Info */}
+              <div className="bg-secondary-50 px-3 py-2 rounded-lg mb-3">
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <Calendar className="w-3.5 h-3.5 text-secondary-500 flex-shrink-0" />
+                  <span className="text-secondary-700">
+                    ประกัน: {getWarrantyPeriod(product.warrantyYears, product.warrantyMonths)}
                   </span>
                 </div>
+              </div>
+              
+              {/* Footer Info */}
+              <div className="flex items-center justify-between pt-3 border-t border-secondary-100">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-secondary-400" />
+                  <span className="text-xs sm:text-sm text-secondary-600">
+                    {product.warrantyCount || 0} การลงทะเบียน
+                  </span>
+                </div>
+                
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                  product.isActive 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-secondary-100 text-secondary-600'
+                }`}>
+                  {product.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}
+                </span>
               </div>
             </div>
           ))}

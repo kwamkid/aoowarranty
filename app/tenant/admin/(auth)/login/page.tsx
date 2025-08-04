@@ -64,8 +64,8 @@ export default function AdminLoginPage() {
       const pathSegments = window.location.pathname.split('/')
       const tenant = pathSegments[1] // abc-shop from /abc-shop/admin/login
       
-      // Call API with tenant in path
-      const response = await fetch(`/${tenant}/api/auth/admin-login`, {
+      // Call API without tenant in path
+      const response = await fetch('/api/auth/admin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

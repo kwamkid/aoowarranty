@@ -14,7 +14,31 @@ export async function POST(request: NextRequest) {
     const headersList = await headers()
     const tenant = headersList.get('x-tenant') || ''
     
-    if (!tenant) {
+    // DEBUG: Log all headers
+    console.log('=== API Debug ===')
+    console.log('Request URL:', request.url)
+    console.log('x-tenant:', tenant)
+    console.log('x-tenant-host:', headersList.get('x-tenant-host'))
+    console.log('host:', headersList.get('host'))
+    console.log('referer:', headersList.get('referer'))
+    console.log('================')
+    
+    // Try to extract tenant from referer if not in x-tenant
+    let actualTenant = tenant
+    if (!actualTenant) {
+      const referer = headersList.get('referer') || ''
+      console.log('No x-tenant, checking referer:', referer)
+      
+      // Extract tenant from referer URL like http://localhost:3000/abc-shop/admin/login
+      const match = referer.match(/\/([^\/]+)\/admin\/login/)
+      if (match) {
+        actualTenant = match[1]
+        console.log('Found tenant from referer:', actualTenant)
+      }
+    }
+    
+    if (!actualTenant) {
+      console.log('No tenant found!')
       return NextResponse.json({
         success: false,
         message: 'ไม่พบข้อมูลบริษัท'
@@ -23,12 +47,13 @@ export async function POST(request: NextRequest) {
     
     // Get company by slug
     const companiesSnapshot = await adminDb.collection('companies')
-      .where('slug', '==', tenant)
+      .where('slug', '==', actualTenant)
       .where('isActive', '==', true)
       .limit(1)
       .get()
     
     if (companiesSnapshot.empty) {
+      console.log('Company not found for tenant:', actualTenant)
       return NextResponse.json({
         success: false,
         message: 'ไม่พบข้อมูลบริษัท'
@@ -37,6 +62,7 @@ export async function POST(request: NextRequest) {
     
     const company = companiesSnapshot.docs[0]
     const companyId = company.id
+    console.log('Found company:', company.data().name, 'ID:', companyId)
     
     // Find user by email and company
     const usersSnapshot = await adminDb.collection('users')
@@ -47,6 +73,7 @@ export async function POST(request: NextRequest) {
       .get()
     
     if (usersSnapshot.empty) {
+      console.log('User not found:', email, 'in company:', companyId)
       return NextResponse.json({
         success: false,
         message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
@@ -58,11 +85,14 @@ export async function POST(request: NextRequest) {
     
     // Check password (in production, use proper hashing)
     if (userData.password !== password) {
+      console.log('Invalid password')
       return NextResponse.json({
         success: false,
         message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
       }, { status: 401 })
     }
+    
+    console.log('Login successful for user:', userData.name)
     
     // Update last login
     await adminDb.collection('users').doc(userDoc.id).update({
@@ -77,7 +107,7 @@ export async function POST(request: NextRequest) {
       email: userData.email,
       name: userData.name,
       role: userData.role,
-      tenant
+      tenant: actualTenant
     }
     
     // Set cookie

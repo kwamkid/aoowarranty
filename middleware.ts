@@ -38,6 +38,15 @@ export function middleware(request: NextRequest) {
   requestHeaders.set('x-tenant', subdomain)
   requestHeaders.set('x-tenant-host', isLocalhost ? 'localhost' : 'production')
   
+  // Handle API routes first - always pass headers without rewriting
+  if (url.pathname.startsWith('/api/')) {
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      }
+    })
+  }
+  
   // Special handling for tenant routes
   if (subdomain) {
     // Rewrite to tenant-specific paths
@@ -51,13 +60,6 @@ export function middleware(request: NextRequest) {
       url.pathname = '/tenant/my-warranties'
     } else if (url.pathname.startsWith('/warranty/')) {
       url.pathname = `/tenant${url.pathname}`
-    } else if (url.pathname.startsWith('/api/auth/')) {
-      // API routes need special handling to pass through tenant context
-      return NextResponse.next({
-        request: {
-          headers: requestHeaders,
-        }
-      })
     }
   }
   
@@ -75,8 +77,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public files (public directory)
+     * - files with extensions (e.g. .js, .css, .png)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)',
   ],
 }
