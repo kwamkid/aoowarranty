@@ -19,6 +19,7 @@ import {
   Building2
 } from 'lucide-react'
 import { formatDate, isWarrantyActive, getDaysUntilExpiry } from '@/lib/utils'
+import CustomerHeader from '@/components/customer/CustomerHeader'
 
 // Define warranty type
 interface WarrantyData {
@@ -114,34 +115,44 @@ export default async function WarrantyDetailPage({
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-secondary-200 sticky top-0 z-50">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Link 
-                href={`/${tenant}/my-warranties`}
-                className="p-2 -ml-2 hover:bg-secondary-100 rounded-lg"
-              >
-                <ArrowLeft className="w-5 h-5 text-secondary-600" />
-              </Link>
-              <div>
-                <h1 className="text-base font-bold text-secondary-900">ใบรับประกันสินค้า</h1>
-                <p className="text-xs text-secondary-600">#{warrantyId}</p>
-              </div>
-            </div>
-            
-            {/* Download Button */}
-            <button className="btn-primary text-sm py-2 px-3">
-              <Download className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">ดาวน์โหลด</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* Shared Header */}
+      <CustomerHeader 
+        company={{
+          name: company.name,
+          logo: company.logo
+        }}
+        tenant={tenant}
+        isLoggedIn={true}
+        session={{
+          displayName: session.displayName,
+          pictureUrl: session.pictureUrl
+        }}
+      />
       
       {/* Main Content */}
       <main className="px-4 py-6 max-w-2xl mx-auto">
+        {/* Page Title with Back Button */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <Link 
+              href={`/${tenant}/my-warranties`}
+              className="p-2 -ml-2 hover:bg-secondary-100 rounded-lg"
+            >
+              <ArrowLeft className="w-5 h-5 text-secondary-600" />
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold text-secondary-900">ใบรับประกันสินค้า</h1>
+              <p className="text-xs text-secondary-600">#{warrantyId}</p>
+            </div>
+          </div>
+          
+          {/* Download Button */}
+          <button className="btn-primary text-sm py-2 px-3">
+            <Download className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">ดาวน์โหลด</span>
+          </button>
+        </div>
+        
         {/* Status Card */}
         <div className={`rounded-xl p-4 mb-6 ${
           isActive ? (isNearExpiry ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200')

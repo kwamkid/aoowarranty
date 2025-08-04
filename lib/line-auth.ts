@@ -5,7 +5,6 @@ import { generateId } from './utils'
 export const LINE_LOGIN_CONFIG = {
   channelId: process.env.NEXT_PUBLIC_LINE_CHANNEL_ID || '',
   channelSecret: process.env.LINE_CHANNEL_SECRET || '',
-  callbackUrl: process.env.NEXT_PUBLIC_LINE_CALLBACK_URL || '',
 }
 
 // Generate LINE Login URL
@@ -88,6 +87,7 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     
     if (!response.ok) {
       const error = await response.json()
+      console.error('Token exchange error:', error)
       throw new Error(error.error_description || 'Failed to exchange code')
     }
     
@@ -101,16 +101,6 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
 // Generate state for CSRF protection
 export function generateLineState(): string {
   return generateId()
-}
-
-// Store LINE user in session
-export interface LineUserSession {
-  lineUserId: string
-  displayName: string
-  pictureUrl?: string
-  email?: string
-  accessToken: string
-  companyId: string
 }
 
 // Helper to check if user is logged in with LINE

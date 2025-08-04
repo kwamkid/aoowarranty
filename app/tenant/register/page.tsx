@@ -3,6 +3,7 @@ import { getTenantContext } from '@/lib/tenant-context'
 import { requireCustomerAuth } from '@/lib/customer-auth'
 import { adminDb } from '@/lib/firebase-admin'
 import RegisterForm from './RegisterForm'
+import CustomerHeader from '@/components/customer/CustomerHeader'
 
 // Get active brands and products
 async function getBrandsAndProducts(companyId: string) {
@@ -61,46 +62,19 @@ export default async function CustomerRegisterPage() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-secondary-200 sticky top-0 z-50">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              {company.logo ? (
-                <img 
-                  src={company.logo} 
-                  alt={company.name}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                  <span className="text-primary-600 font-bold text-sm">
-                    {company.name.charAt(0)}
-                  </span>
-                </div>
-              )}
-              <div>
-                <h1 className="text-base font-bold text-secondary-900">{company.name}</h1>
-                <p className="text-xs text-secondary-600">ลงทะเบียนรับประกัน</p>
-              </div>
-            </div>
-            
-            {/* User Info */}
-            <div className="flex items-center space-x-2">
-              {session.pictureUrl && (
-                <img 
-                  src={session.pictureUrl} 
-                  alt={session.displayName}
-                  className="h-8 w-8 rounded-full"
-                />
-              )}
-              <span className="text-sm text-secondary-700 hidden sm:block">
-                {session.displayName}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Shared Header */}
+      <CustomerHeader 
+        company={{
+          name: company.name,
+          logo: company.logo
+        }}
+        tenant={tenant}
+        isLoggedIn={true}
+        session={{
+          displayName: session.displayName,
+          pictureUrl: session.pictureUrl
+        }}
+      />
       
       {/* Main Content */}
       <main className="px-4 py-6 max-w-2xl mx-auto">

@@ -10,10 +10,10 @@ import {
   Package, 
   CheckCircle,
   AlertTriangle,
-  FileText,
-  LogOut
+  FileText
 } from 'lucide-react'
 import { formatDate, isWarrantyActive, getDaysUntilExpiry } from '@/lib/utils'
+import CustomerHeader from '@/components/customer/CustomerHeader'
 
 async function getCustomerWarranties(customerId: string, companyId: string) {
   try {
@@ -49,48 +49,30 @@ export default async function MyWarrantiesPage() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-secondary-200 sticky top-0 z-50">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Link 
-                href={`/${tenant}`}
-                className="p-2 -ml-2 hover:bg-secondary-100 rounded-lg sm:hidden"
-              >
-                <Shield className="w-5 h-5 text-secondary-600" />
-              </Link>
-              <div>
-                <h1 className="text-base font-bold text-secondary-900">ประกันของฉัน</h1>
-                <p className="text-xs text-secondary-600">{company.name}</p>
-              </div>
-            </div>
-            
-            {/* User Menu */}
-            <div className="flex items-center space-x-2">
-              {session.pictureUrl && (
-                <img 
-                  src={session.pictureUrl} 
-                  alt={session.displayName}
-                  className="h-8 w-8 rounded-full"
-                />
-              )}
-              <form action={`/${tenant}/api/auth/line/me`} method="DELETE">
-                <button 
-                  type="submit"
-                  className="p-2 hover:bg-secondary-100 rounded-lg"
-                  title="ออกจากระบบ"
-                >
-                  <LogOut className="w-5 h-5 text-secondary-600" />
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Shared Header */}
+      <CustomerHeader 
+        company={{
+          name: company.name,
+          logo: company.logo
+        }}
+        tenant={tenant}
+        isLoggedIn={true}
+        session={{
+          displayName: session.displayName,
+          pictureUrl: session.pictureUrl
+        }}
+      />
       
       {/* Main Content */}
       <main className="px-4 py-6 max-w-4xl mx-auto">
+        {/* Page Title */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-secondary-900">ประกันของฉัน</h1>
+          <p className="text-sm text-secondary-600 mt-1">
+            รายการประกันสินค้าที่ลงทะเบียนไว้ทั้งหมด
+          </p>
+        </div>
+        
         {/* Add New Button */}
         <Link
           href={`/${tenant}/register`}

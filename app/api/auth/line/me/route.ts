@@ -1,6 +1,6 @@
 // app/api/auth/line/me/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,9 +58,28 @@ export async function DELETE(request: NextRequest) {
     const cookieStore = await cookies()
     cookieStore.delete('line-session')
     
+    // Get tenant for redirect
+    const headersList = await headers()
+    const tenant = headersList.get('x-tenant') || ''
+    
+    // Redirect to tenant home
+    const isLocalhost = headersList.get('x-tenant-host') === 'localhost'
+    let redirectUrl = '/'
+    
+    if (tenant) {
+      if (isLocalhost) {
+        redirectUrl = `http://localhost:3000/${tenant}`
+      } else {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://warrantyhub.com'
+        const domain = baseUrl.replace(/https?:\/\//, '')
+        redirectUrl = `https://${tenant}.${domain}`
+      }
+    }
+    
     return NextResponse.json({
       success: true,
-      message: 'ออกจากระบบสำเร็จ'
+      message: 'ออกจากระบบสำเร็จ',
+      redirectUrl
     })
   } catch (error) {
     return NextResponse.json({

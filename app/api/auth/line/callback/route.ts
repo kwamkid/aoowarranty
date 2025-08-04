@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code')
     const state = searchParams.get('state')
     const error = searchParams.get('error')
+    const errorDescription = searchParams.get('error_description')
     
     // Extract tenant from state
     let tenant = ''
@@ -22,16 +23,18 @@ export async function GET(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     
     if (!tenant) {
+      console.error('No tenant in callback state')
       return NextResponse.redirect(new URL(appUrl, request.url))
     }
     
     // Handle LINE errors
     if (error) {
-      console.error('LINE Login error:', error)
-      return NextResponse.redirect(new URL(`${appUrl}/${tenant}?error=line_login_failed`, request.url))
+      console.error('LINE Login error:', error, errorDescription)
+      return NextResponse.redirect(new URL(`${appUrl}/${tenant}?error=line_login_failed&desc=${errorDescription}`, request.url))
     }
     
     if (!code || !state) {
+      console.error('Missing code or state')
       return NextResponse.redirect(new URL(`${appUrl}/${tenant}?error=invalid_request`, request.url))
     }
     
@@ -43,6 +46,7 @@ export async function GET(request: NextRequest) {
       .get()
     
     if (companiesSnapshot.empty) {
+      console.error('Company not found:', tenant)
       return NextResponse.redirect(new URL(appUrl, request.url))
     }
     
@@ -51,10 +55,14 @@ export async function GET(request: NextRequest) {
     
     // Exchange code for token
     const redirectUri = `${appUrl}/api/auth/line/callback`
+    console.log('Exchanging code for token with redirect URI:', redirectUri)
+    
     const tokenData = await exchangeCodeForToken(code, redirectUri)
+    console.log('Token exchange successful')
     
     // Get user profile
     const profile = await getLineProfile(tokenData.access_token)
+    console.log('Got LINE profile:', profile.displayName)
     
     // Check if customer exists
     const customersRef = adminDb.collection('customers')
@@ -75,18 +83,22 @@ export async function GET(request: NextRequest) {
         displayName: profile.displayName,
         pictureUrl: profile.pictureUrl || '',
         email: tokenData.email || '',
+        statusMessage: profile.statusMessage || '',
         createdAt: new Date(),
         lastLogin: new Date(),
         warranties: []
       })
+      console.log('Created new customer:', customerId)
     } else {
       // Update existing customer
       customerId = existingCustomerQuery.docs[0].id
       await customersRef.doc(customerId).update({
         lastLogin: new Date(),
         displayName: profile.displayName,
-        pictureUrl: profile.pictureUrl || ''
+        pictureUrl: profile.pictureUrl || '',
+        statusMessage: profile.statusMessage || ''
       })
+      console.log('Updated existing customer:', customerId)
     }
     
     // Create session
@@ -98,7 +110,9 @@ export async function GET(request: NextRequest) {
       email: tokenData.email || '',
       companyId,
       tenant,
-      accessToken: tokenData.access_token
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token || '',
+      expiresIn: tokenData.expires_in
     }
     
     // Set session cookie
@@ -110,8 +124,10 @@ export async function GET(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 30 // 30 days
     })
     
-    // Redirect to register page
-    return NextResponse.redirect(new URL(`${appUrl}/${tenant}/register`, request.url))
+    console.log('Session created, redirecting to:', `${appUrl}/${tenant}`)
+    
+    // Redirect to tenant home
+    return NextResponse.redirect(new URL(`${appUrl}/${tenant}`, request.url))
     
   } catch (error: any) {
     console.error('LINE callback error:', error)

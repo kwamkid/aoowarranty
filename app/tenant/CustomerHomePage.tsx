@@ -1,9 +1,9 @@
 // app/tenant/CustomerHomePage.tsx
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { Shield, FileText, Phone, MapPin, Globe, ArrowRight, CheckCircle, Loader2 } from 'lucide-react'
+import { Shield, FileText, Phone, MapPin, Globe, ArrowRight, CheckCircle } from 'lucide-react'
+import CustomerHeader from '@/components/customer/CustomerHeader'
 
 interface CustomerHomePageProps {
   company: any
@@ -13,72 +13,15 @@ interface CustomerHomePageProps {
 }
 
 export default function CustomerHomePage({ company, tenant, isLoggedIn, session }: CustomerHomePageProps) {
-  const [loggingIn, setLoggingIn] = useState(false)
-  
-  const handleLineLogin = () => {
-    setLoggingIn(true)
-    window.location.href = `/${tenant}/api/auth/line/login`
-  }
-  
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
-      {/* Header - Mobile Optimized */}
-      <header className="bg-white shadow-sm border-b border-secondary-200 sticky top-0 z-50">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* Company Logo & Name */}
-            <div className="flex items-center space-x-3">
-              {company.logo ? (
-                <img 
-                  src={company.logo} 
-                  alt={company.name}
-                  className="h-10 w-10 rounded-full object-cover border-2 border-secondary-200"
-                />
-              ) : (
-                <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-primary-600" />
-                </div>
-              )}
-              <div className="flex-1">
-                <h1 className="text-base sm:text-lg font-bold text-secondary-900 leading-tight">{company.name}</h1>
-                <p className="text-xs text-secondary-600 hidden sm:block">ระบบลงทะเบียนรับประกัน</p>
-              </div>
-            </div>
-            
-            {/* User Menu or Login */}
-            {isLoggedIn ? (
-              <div className="flex items-center space-x-3">
-                {session?.pictureUrl && (
-                  <img 
-                    src={session.pictureUrl} 
-                    alt={session.displayName}
-                    className="h-8 w-8 rounded-full"
-                  />
-                )}
-                <Link 
-                  href={`/${tenant}/my-warranties`}
-                  className="text-primary-600 text-sm font-medium flex items-center"
-                >
-                  <FileText className="w-4 h-4 mr-1" />
-                  <span>ประกันของฉัน</span>
-                </Link>
-              </div>
-            ) : (
-              <button 
-                onClick={handleLineLogin}
-                disabled={loggingIn}
-                className="btn-primary text-sm py-2 px-3"
-              >
-                {loggingIn ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'เข้าสู่ระบบ'
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      {/* Shared Header */}
+      <CustomerHeader 
+        company={company}
+        tenant={tenant}
+        isLoggedIn={isLoggedIn}
+        session={session}
+      />
 
       {/* Hero Section - Mobile First */}
       <section className="px-4 py-8 sm:py-12 md:py-16">
@@ -102,49 +45,25 @@ export default function CustomerHomePage({ company, tenant, isLoggedIn, session 
           </p>
           
           {/* CTA Buttons - Stack on Mobile */}
-          <div className="space-y-3 sm:space-y-0 sm:flex sm:gap-3 sm:justify-center px-4 sm:px-0">
-            {isLoggedIn ? (
-              <>
-                <Link 
-                  href={`/${tenant}/register`}
-                  className="btn-primary w-full sm:w-auto flex items-center justify-center text-sm sm:text-base py-3"
-                >
-                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  ลงทะเบียนรับประกัน
-                </Link>
-                
-                <Link 
-                  href={`/${tenant}/my-warranties`}
-                  className="btn-outline w-full sm:w-auto flex items-center justify-center text-sm sm:text-base py-3"
-                >
-                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  ตรวจสอบประกัน
-                </Link>
-              </>
-            ) : (
-              <button 
-                onClick={handleLineLogin}
-                disabled={loggingIn}
+          {isLoggedIn && (
+            <div className="space-y-3 sm:space-y-0 sm:flex sm:gap-3 sm:justify-center px-4 sm:px-0">
+              <Link 
+                href={`/${tenant}/register`}
                 className="btn-primary w-full sm:w-auto flex items-center justify-center text-sm sm:text-base py-3"
               >
-                {loggingIn ? (
-                  <>
-                    <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
-                    กำลังเข้าสู่ระบบ...
-                  </>
-                ) : (
-                  <>
-                    <img 
-                      src="/line-icon.png" 
-                      alt="LINE"
-                      className="w-5 h-5 sm:w-6 sm:h-6 mr-2"
-                    />
-                    เข้าสู่ระบบด้วย LINE
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                ลงทะเบียนรับประกัน
+              </Link>
+              
+              <Link 
+                href={`/${tenant}/my-warranties`}
+                className="btn-outline w-full sm:w-auto flex items-center justify-center text-sm sm:text-base py-3"
+              >
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                ตรวจสอบประกัน
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 

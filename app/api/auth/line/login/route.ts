@@ -1,28 +1,28 @@
-// app/api/auth/line/login/route.ts
+// app/api/auth/line/login/route.ts - REAL LINE LOGIN
 import { NextRequest, NextResponse } from 'next/server'
 import { generateLineState, getLineLoginUrl } from '@/lib/line-auth'
-import { headers } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get tenant from headers
-    const headersList = await headers()
-    const tenant = headersList.get('x-tenant') || ''
+    // Get tenant from URL parameter or headers
+    const { searchParams } = new URL(request.url)
+    const tenant = searchParams.get('tenant') || ''
     
     if (!tenant) {
       return NextResponse.json({
         success: false,
-        message: 'Invalid request'
+        message: 'Invalid request - no tenant specified'
       }, { status: 400 })
     }
     
     // Generate state for CSRF protection
     const state = generateLineState()
     
-    // TODO: In production, store state in database or cache for verification
-    
     // Generate LINE Login URL
     const loginUrl = getLineLoginUrl(state, tenant)
+    
+    console.log('Redirecting to LINE Login:', loginUrl)
+    console.log('Tenant:', tenant)
     
     // Redirect to LINE Login
     return NextResponse.redirect(loginUrl)
@@ -30,10 +30,15 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('LINE login initiation error:', error)
     
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to initiate LINE login',
-      error: error.message
-    }, { status: 500 })
+    // Get tenant for error redirect
+    const { searchParams } = new URL(request.url)
+    const tenant = searchParams.get('tenant') || ''
+    
+    let errorUrl = '/'
+    if (tenant) {
+      errorUrl = `http://localhost:3000/${tenant}?error=line_login_failed`
+    }
+    
+    return NextResponse.redirect(errorUrl)
   }
 }
