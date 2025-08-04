@@ -1,6 +1,14 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Suppress source map warnings
+  productionBrowserSourceMaps: false,
+  
+  experimental: {
+    // Disable source maps for server components in development
+    serverSourceMaps: false,
+  },
+  
   images: {
     domains: [
       'firebasestorage.googleapis.com',
@@ -10,7 +18,6 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: process.env.NODE_ENV === 'development'
   },
-  
   
   // Handle subdomain routing
   async rewrites() {
@@ -43,6 +50,29 @@ const nextConfig: NextConfig = {
         tls: false,
       }
     }
+    
+    // Fix for Firebase Admin SDK source maps
+    config.module.rules.push({
+      test: /\.js$/,
+      include: /node_modules\/@google-cloud/,
+      use: {
+        loader: 'source-map-loader',
+      },
+      enforce: 'pre',
+    })
+    
+    // Ignore source map warnings for specific modules
+    config.ignoreWarnings = [
+      {
+        module: /@google-cloud/,
+        message: /Failed to parse source map/,
+      },
+      {
+        module: /firestore/,
+        message: /Invalid source map/,
+      },
+    ]
+    
     return config
   },
   

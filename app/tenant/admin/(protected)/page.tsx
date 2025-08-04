@@ -1,4 +1,4 @@
-// app/tenant/admin/page.tsx
+// app/tenant/admin/(protected)/page.tsx
 import { getTenantContext } from '@/lib/tenant-context'
 import { adminDb } from '@/lib/firebase-admin'
 import { 

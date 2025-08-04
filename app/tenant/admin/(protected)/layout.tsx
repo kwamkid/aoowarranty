@@ -1,4 +1,5 @@
-// app/tenant/admin/layout.tsx
+// app/tenant/admin/(protected)/layout.tsx
+// This layout applies authentication check
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getTenantContext } from '@/lib/tenant-context'
@@ -19,7 +20,7 @@ async function getAuthSession() {
   }
 }
 
-export default async function TenantAdminLayout({
+export default async function ProtectedAdminLayout({
   children,
 }: {
   children: React.ReactNode
