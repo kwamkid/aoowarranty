@@ -16,24 +16,24 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'WarrantyHub - ระบบลงทะเบียนรับประกันสินค้า',
+  title: 'AooWarranty - ระบบลงทะเบียนรับประกันสินค้า',
   description: 'ระบบลงทะเบียนรับประกันสินค้าออนไลน์ที่ทันสมัย รองรับ LINE Login และจัดการข้อมูลประกันอย่างมีประสิทธิภาพ',
   keywords: 'warranty, รับประกัน, ลงทะเบียน, LINE Login, ระบบจัดการ',
-  authors: [{ name: 'WarrantyHub Team' }],
-  creator: 'WarrantyHub',
-  publisher: 'WarrantyHub',
+  authors: [{ name: 'AooWarranty Team' }],
+  creator: 'AooWarranty',
+  publisher: 'AooWarranty',
   robots: 'index, follow',
   openGraph: {
-    title: 'WarrantyHub - ระบบลงทะเบียนรับประกันสินค้า',
+    title: 'AooWarranty - ระบบลงทะเบียนรับประกันสินค้า',
     description: 'ระบบลงทะเบียนรับประกันสินค้าออนไลน์ที่ทันสมัย',
-    url: 'https://warrantyhub.com',
-    siteName: 'WarrantyHub',
+    url: 'https://aoowarranty.com',
+    siteName: 'AooWarranty',
     locale: 'th_TH',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'WarrantyHub - ระบบลงทะเบียนรับประกันสินค้า',
+    title: 'AooWarranty - ระบบลงทะเบียนรับประกันสินค้า',
     description: 'ระบบลงทะเบียนรับประกันสินค้าออนไลน์ที่ทันสมัย',
   },
 }

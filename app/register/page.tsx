@@ -286,12 +286,12 @@ export default function CompanyRegistrationPage() {
             <div className="flex items-center space-x-3">
               <Image
                 src="/logo.svg"
-                alt="WarrantyHub"
+                alt="AooWarranty"
                 width={32}
                 height={32}
                 className="h-8 w-auto"
               />
-              <h1 className="text-lg sm:text-xl font-bold text-secondary-900">สมัครใช้งาน WarrantyHub</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-secondary-900">สมัครใช้งาน AooWarranty</h1>
             </div>
             <div className="w-16"></div> {/* Spacer for balance */}
           </div>

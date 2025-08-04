@@ -138,13 +138,13 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         <div className="flex items-center px-6 py-4 border-b border-secondary-200 h-16">
           <Image
             src="/logo.svg"
-            alt="WarrantyHub Logo"
+            alt="AooWarranty Logo"
             width={40}
             height={40}
             className="w-10 h-10"
           />
           <div className="ml-3">
-            <h1 className="text-lg font-bold text-secondary-900 leading-tight">WarrantyHub</h1>
+            <h1 className="text-lg font-bold text-secondary-900 leading-tight">AooWarranty</h1>
             <p className="text-xs text-secondary-600 leading-tight">Admin Panel</p>
           </div>
         </div>

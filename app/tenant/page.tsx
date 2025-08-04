@@ -181,7 +181,7 @@ export default async function TenantHomePage() {
             © 2024 {company.name}
           </p>
           <p className="text-xs text-secondary-400 mt-1">
-            Powered by WarrantyHub
+            Powered by AooWarranty
           </p>
         </div>
       </footer>

@@ -79,12 +79,12 @@ export default function LandingPage() {
             <div className="flex items-center space-x-3">
               <Image
                 src="/logo.svg"
-                alt="WarrantyHub"
+                alt="AooWarranty"
                 width={40}
                 height={40}
                 className="h-10 w-auto"
               />
-              <span className="text-xl font-bold text-secondary-900">WarrantyHub</span>
+              <span className="text-xl font-bold text-secondary-900">AooWarranty</span>
             </div>
             
             <div className="hidden md:flex items-center space-x-6">
@@ -192,7 +192,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-secondary-900 mb-4">
-              ทำไมต้องเลือก WarrantyHub?
+              ทำไมต้องเลือก AooWarranty?
             </h2>
             <p className="text-lg text-secondary-600 max-w-2xl mx-auto">
               ระบบครบครันที่ช่วยให้ธุรกิจของคุณดูแลลูกค้าได้ดีขึ้น
@@ -225,7 +225,7 @@ export default function LandingPage() {
               ลูกค้าพูดถึงเรา
             </h2>
             <p className="text-lg text-secondary-600">
-              ร้านค้าและธุรกิจมากมายเลือกใช้ WarrantyHub
+              ร้านค้าและธุรกิจมากมายเลือกใช้ AooWarranty
             </p>
           </div>
           
@@ -287,12 +287,12 @@ export default function LandingPage() {
               <div className="flex items-center space-x-3 mb-4">
                 <Image
                   src="/logo.svg"
-                  alt="WarrantyHub"
+                  alt="AooWarranty"
                   width={32}
                   height={32}
                   className="h-8 w-auto"
                 />
-                <span className="text-lg font-bold">WarrantyHub</span>
+                <span className="text-lg font-bold">AooWarranty</span>
               </div>
               <p className="text-secondary-300">
                 ระบบลงทะเบียนรับประกันสินค้าที่ทันสมัยและใช้งานง่าย
@@ -328,7 +328,7 @@ export default function LandingPage() {
           </div>
           
           <div className="border-t border-secondary-700 mt-8 pt-8 text-center text-secondary-400">
-            <p>&copy; 2024 WarrantyHub. สงวนลิขสิทธิ์.</p>
+            <p>&copy; 2024 AooWarranty. สงวนลิขสิทธิ์.</p>
           </div>
         </div>
       </footer>

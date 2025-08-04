@@ -7,8 +7,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const { company } = await getTenantContext()
   
   return {
-    title: company?.name || 'WarrantyHub',
-    description: `ระบบลงทะเบียนรับประกันสินค้าของ ${company?.name || 'WarrantyHub'}`,
+    title: company?.name || 'AooWarranty',
+    description: `ระบบลงทะเบียนรับประกันสินค้าของ ${company?.name || 'AooWarranty'}`,
   }
 }
 
