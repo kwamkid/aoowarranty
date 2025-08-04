@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
@@ -12,10 +14,21 @@ import {
   Star,
   Building2,
   Zap,
-  Globe
+  Globe,
+  X,
+  LogIn,
+  Loader2,
+  Gift
 } from 'lucide-react'
 
 export default function LandingPage() {
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
+
   const features = [
     {
       icon: Shield,
@@ -70,6 +83,45 @@ export default function LandingPage() {
     }
   ]
 
+  // Handle login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      // First, try to find company by email
+      const findResponse = await fetch('/api/auth/find-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      const findResult = await findResponse.json()
+
+      if (!findResult.success || !findResult.companySlug) {
+        setError('ไม่พบบัญชีผู้ใช้ในระบบ')
+        setLoading(false)
+        return
+      }
+
+      // Redirect to company subdomain for actual login
+      const loginUrl = `http://localhost:3000/${findResult.companySlug}/admin/login`
+      
+      // Store credentials temporarily
+      sessionStorage.setItem('temp-email', email)
+      sessionStorage.setItem('temp-password', password)
+      
+      // Redirect to company login page
+      window.location.href = loginUrl
+
+    } catch (error) {
+      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -91,12 +143,16 @@ export default function LandingPage() {
               <a href="#features" className="text-secondary-600 hover:text-secondary-900">
                 คุณสมบัติ
               </a>
-              <a href="#pricing" className="text-secondary-600 hover:text-secondary-900">
-                ราคา
-              </a>
               <a href="#testimonials" className="text-secondary-600 hover:text-secondary-900">
                 รีวิว
               </a>
+              <button 
+                onClick={() => setShowLoginModal(true)}
+                className="btn-outline flex items-center"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                เข้าสู่ระบบ
+              </button>
               <Link href="/register" className="btn-primary">
                 สมัครใช้งาน
               </Link>
@@ -110,6 +166,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
+              {/* Free Forever Badge */}
+              <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full mb-6">
+                <Gift className="w-5 h-5 mr-2" />
+                <span className="font-semibold">ใช้ฟรีตลอดชีพ ไม่มีค่าใช้จ่าย</span>
+              </div>
+
               <h1 className="text-4xl md:text-5xl font-bold text-secondary-900 mb-6">
                 ระบบลงทะเบียน<br />
                 <span className="text-primary-500">รับประกันสินค้า</span><br />
@@ -121,20 +183,25 @@ export default function LandingPage() {
                 จัดการข้อมูลลูกค้าและสินค้าอัตโนมัติ พร้อมรายงานครบครัน
               </p>
               
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <Link href="/register" className="btn-primary text-lg px-8 py-4">
+              {/* CTA Buttons */}
+              <div className="flex flex-wrap gap-4">
+                <Link href="/register" className="btn-primary inline-flex items-center">
                   เริ่มใช้งานฟรี
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>
-                <Link href="/demo" className="btn-outline text-lg px-8 py-4">
-                  ดูตัวอย่าง
-                </Link>
+                <button 
+                  onClick={() => setShowLoginModal(true)}
+                  className="btn-outline flex items-center"
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  เข้าสู่ระบบ
+                </button>
               </div>
               
               <div className="flex items-center space-x-6 mt-8 text-sm text-secondary-600">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span>ใช้งานฟรี 30 วัน</span>
+                  <span>ฟรีตลอดชีพ</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
@@ -264,7 +331,7 @@ export default function LandingPage() {
             พร้อมเริ่มต้นใช้งานแล้วหรือยัง?
           </h2>
           <p className="text-xl text-primary-100 mb-8">
-            สมัครวันนี้ ใช้งานฟรี 30 วัน ไม่มีค่าใช้จ่ายแอบแฝง
+            สมัครวันนี้ ใช้งานฟรีตลอดชีพ ไม่มีค่าใช้จ่ายแอบแฝง
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
@@ -278,6 +345,94 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-secondary-900">
+                เข้าสู่ระบบ
+              </h3>
+              <button
+                onClick={() => {
+                  setShowLoginModal(false)
+                  setEmail('')
+                  setPassword('')
+                  setError('')
+                }}
+                className="p-2 hover:bg-secondary-100 rounded-lg"
+              >
+                <X className="w-5 h-5 text-secondary-600" />
+              </button>
+            </div>
+            
+            {/* Login Form */}
+            <form onSubmit={handleLogin} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  อีเมล
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="admin@company.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  รหัสผ่าน
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full flex items-center justify-center"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    กำลังเข้าสู่ระบบ...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-5 h-5 mr-2" />
+                    เข้าสู่ระบบ
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-6 border-t border-secondary-200 text-center">
+              <p className="text-sm text-secondary-600">
+                ยังไม่มีบัญชี?{' '}
+                <Link href="/register" className="text-primary-600 hover:text-primary-700 font-medium">
+                  สมัครใช้งานฟรี
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-secondary-900 text-white py-12">
@@ -303,7 +458,6 @@ export default function LandingPage() {
               <h4 className="font-semibold mb-4">ผลิตภัณฑ์</h4>
               <ul className="space-y-2 text-secondary-300">
                 <li><a href="#" className="hover:text-white">คุณสมบัติ</a></li>
-                <li><a href="#" className="hover:text-white">ราคา</a></li>
                 <li><a href="#" className="hover:text-white">API</a></li>
               </ul>
             </div>

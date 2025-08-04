@@ -1,7 +1,7 @@
 // lib/utils.ts
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { format, addYears, addMonths, isBefore, isAfter } from 'date-fns'
+import { format, addYears, addMonths, addDays, isBefore, isAfter } from 'date-fns'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -56,7 +56,9 @@ export function calculateWarrantyExpiry(
   warrantyMonths: number = 0
 ): string {
   const startDate = new Date(purchaseDate)
-  let expiryDate = startDate
+  // เริ่มนับประกันจากวันพรุ่งนี้ของวันที่ซื้อ (เพิ่ม 1 วัน)
+  const warrantyStartDate = addDays(startDate, 1)
+  let expiryDate = warrantyStartDate
   
   if (warrantyYears > 0) {
     expiryDate = addYears(expiryDate, warrantyYears)
@@ -65,6 +67,9 @@ export function calculateWarrantyExpiry(
   if (warrantyMonths > 0) {
     expiryDate = addMonths(expiryDate, warrantyMonths)
   }
+  
+  // ลบออก 1 วัน เพราะวันหมดอายุคือวันสุดท้ายที่ใช้ได้
+  expiryDate = addDays(expiryDate, -1)
   
   return format(expiryDate, 'yyyy-MM-dd')
 }

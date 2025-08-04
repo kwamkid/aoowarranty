@@ -4,6 +4,7 @@ import { adminDb, adminStorage } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
 import { generateId } from '@/lib/utils'
 import { FieldValue } from 'firebase-admin/firestore'
+import { format, addDays } from 'date-fns'
 
 // Get customer session
 async function getCustomerSession() {
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
       
       // Purchase data
       purchaseDate: warrantyData.purchaseDate,
-      warrantyStartDate: warrantyData.purchaseDate,
+      warrantyStartDate: format(addDays(new Date(warrantyData.purchaseDate), 1), 'yyyy-MM-dd'), // เริ่มนับวันพรุ่งนี้
       warrantyExpiry: warrantyData.warrantyExpiry,
       
       // Documents

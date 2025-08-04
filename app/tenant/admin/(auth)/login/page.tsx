@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -26,10 +26,34 @@ export default function AdminLoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors }
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema)
   })
+  
+  // Check for auto-fill data from sessionStorage
+  useEffect(() => {
+    const tempEmail = sessionStorage.getItem('temp-email')
+    const tempPassword = sessionStorage.getItem('temp-password')
+    
+    if (tempEmail && tempPassword) {
+      setValue('email', tempEmail)
+      setValue('password', tempPassword)
+      
+      // Clear temp data
+      sessionStorage.removeItem('temp-email')
+      sessionStorage.removeItem('temp-password')
+      
+      // Auto submit
+      setTimeout(() => {
+        const form = document.getElementById('login-form') as HTMLFormElement
+        if (form) {
+          form.requestSubmit()
+        }
+      }, 100)
+    }
+  }, [setValue])
   
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true)
@@ -93,7 +117,7 @@ export default function AdminLoginPage() {
           )}
           
           {/* Login Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form id="login-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-secondary-700 mb-2">
                 อีเมล

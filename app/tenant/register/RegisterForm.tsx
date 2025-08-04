@@ -385,6 +385,14 @@ export default function RegisterForm({
             <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-700 flex items-center">
                 <CheckCircle className="w-4 h-4 mr-2" />
+                ประกันจะเริ่มนับวันที่: {new Date(new Date(watchPurchaseDate).getTime() + 86400000).toLocaleDateString('th-TH', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })} (วันถัดไป)
+              </p>
+              <p className="text-sm text-green-700 flex items-center mt-1">
+                <CheckCircle className="w-4 h-4 mr-2" />
                 ประกันจะหมดอายุวันที่: {new Date(warrantyExpiry).toLocaleDateString('th-TH', {
                   year: 'numeric',
                   month: 'long',
