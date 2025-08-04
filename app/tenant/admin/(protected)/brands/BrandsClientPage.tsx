@@ -48,22 +48,23 @@ export default function BrandsClientPage({ initialBrands = [], tenant }: BrandsP
     brand.description?.toLowerCase().includes(searchTerm.toLowerCase())
   )
   
-  // Handle delete brand
+// Handle delete brand
   const handleDelete = async (brandId: string, brandName: string) => {
-    const confirmed = await confirm({
-      title: 'ยืนยันการลบแบรนด์',
-      message: `ต้องการลบแบรนด์ "${brandName}" หรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`,
-      type: 'danger',
-      confirmText: 'ลบแบรนด์',
-      cancelText: 'ยกเลิก'
-    })
-    
-    if (!confirmed) return
-    
-    setDeleting(brandId)
-    showLoading() // แสดง loading
-    
     try {
+      const confirmed = await confirm({
+        title: 'ยืนยันการลบแบรนด์',
+        message: `ต้องการลบแบรนด์ "${brandName}" หรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`,
+        type: 'danger',
+        confirmText: 'ลบแบรนด์',
+        cancelText: 'ยกเลิก',
+        requireConfirmation: brandName // ต้องพิมพ์ชื่อแบรนด์เพื่อยืนยัน
+      })
+      
+      if (!confirmed) return
+      
+      setDeleting(brandId)
+      showLoading() // แสดง loading
+      
       const response = await fetch(`/api/brands/${brandId}`, {
         method: 'DELETE'
       })
@@ -80,6 +81,7 @@ export default function BrandsClientPage({ initialBrands = [], tenant }: BrandsP
         error(result.message || 'เกิดข้อผิดพลาดในการลบแบรนด์')
       }
     } catch (err) {
+      console.error('Delete error:', err)
       error('เกิดข้อผิดพลาดในการลบแบรนด์')
     } finally {
       setDeleting(null)

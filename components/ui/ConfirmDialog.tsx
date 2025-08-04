@@ -14,6 +14,7 @@ interface ConfirmDialogProps {
   confirmText?: string
   cancelText?: string
   loading?: boolean
+  requireConfirmation?: string // Text that user must type to confirm
 }
 
 export default function ConfirmDialog({
@@ -25,12 +26,23 @@ export default function ConfirmDialog({
   type = 'warning',
   confirmText = 'ยืนยัน',
   cancelText = 'ยกเลิก',
-  loading = false
+  loading = false,
+  requireConfirmation
 }: ConfirmDialogProps) {
   const [mounted, setMounted] = useState(false)
+  const [confirmationInput, setConfirmationInput] = useState('')
+  
+  // Check if confirmation matches (case-insensitive)
+  const isConfirmationValid = !requireConfirmation || 
+    confirmationInput.toLowerCase() === requireConfirmation.toLowerCase()
 
   useEffect(() => {
     setMounted(true)
+    
+    // Reset confirmation input when dialog opens/closes
+    if (!isOpen) {
+      setConfirmationInput('')
+    }
     
     // Prevent body scroll when dialog is open
     if (isOpen) {
@@ -127,6 +139,23 @@ export default function ConfirmDialog({
             <p className="text-secondary-600 whitespace-pre-line">
               {message}
             </p>
+            
+            {/* Confirmation Input */}
+            {requireConfirmation && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  พิมพ์ <span className="font-semibold text-red-600">"{requireConfirmation}"</span> เพื่อยืนยัน
+                </label>
+                <input
+                  type="text"
+                  value={confirmationInput}
+                  onChange={(e) => setConfirmationInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  placeholder={`พิมพ์ "${requireConfirmation}"`}
+                  disabled={loading}
+                />
+              </div>
+            )}
           </div>
           
           {/* Actions */}
@@ -134,14 +163,30 @@ export default function ConfirmDialog({
             <button
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-secondary-700 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-sm font-medium text-secondary-700 bg-secondary-100 hover:bg-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {cancelText}
             </button>
             <button
               onClick={onConfirm}
-              disabled={loading}
-              className={`px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${colors[type].button}`}
+              disabled={loading || !isConfirmationValid}
+              className={`px-4 py-2 text-sm font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
+              style={{
+                backgroundColor: loading || !isConfirmationValid ? '#fca5a5' : '#dc2626',
+                color: loading || !isConfirmationValid ? '#fef2f2' : '#ffffff',
+                cursor: loading || !isConfirmationValid ? 'not-allowed' : 'pointer',
+                opacity: 1
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && isConfirmationValid) {
+                  e.currentTarget.style.backgroundColor = '#b91c1c'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading && isConfirmationValid) {
+                  e.currentTarget.style.backgroundColor = '#dc2626'
+                }
+              }}
             >
               {loading ? (
                 <span className="flex items-center">

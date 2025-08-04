@@ -16,6 +16,8 @@ import {
   X
 } from 'lucide-react'
 import DropdownMenu from '@/components/ui/DropdownMenu'
+import { useLoading } from '@/components/providers/LoadingProvider'
+import { useDialog } from '@/hooks/useDialog'
 
 interface Product {
   id: string
@@ -56,6 +58,8 @@ export default function ProductsClientPage({
   const [deleting, setDeleting] = useState<string | null>(null)
   const [selectedBrand, setSelectedBrand] = useState<string>(selectedBrandId || '')
   const router = useRouter()
+  const { showLoading, hideLoading } = useLoading()
+  const { confirm, error, success, DialogComponents } = useDialog()
   
   // Filter products based on search and brand
   const filteredProducts = products.filter(product => {
@@ -87,14 +91,25 @@ export default function ProductsClientPage({
   }
   
   // Handle delete product
-  const handleDelete = async (productId: string, productName: string) => {
-    if (!confirm(`ต้องการลบสินค้า "${productName}" หรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`)) {
-      return
-    }
-    
-    setDeleting(productId)
-    
+  const handleDelete = async (productId: string, productName: string, productModel: string) => {
     try {
+      // สร้างข้อความสำหรับยืนยัน
+      const displayName = productModel ? `${productName} - ${productModel}` : productName
+      
+      const confirmed = await confirm({
+        title: 'ยืนยันการลบสินค้า',
+        message: `ต้องการลบสินค้า "${displayName}" หรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`,
+        type: 'danger',
+        confirmText: 'ลบสินค้า',
+        cancelText: 'ยกเลิก',
+        requireConfirmation: productName // ต้องพิมพ์ชื่อสินค้าเพื่อยืนยัน
+      })
+      
+      if (!confirmed) return
+      
+      setDeleting(productId)
+      showLoading()
+      
       const response = await fetch(`/api/products/${productId}`, {
         method: 'DELETE'
       })
@@ -104,15 +119,18 @@ export default function ProductsClientPage({
       if (result.success) {
         // Remove from local state
         setProducts(products.filter(p => p.id !== productId))
+        success('ลบสินค้าสำเร็จ')
         // Refresh to get updated counts
         router.refresh()
       } else {
-        alert(result.message || 'เกิดข้อผิดพลาดในการลบสินค้า')
+        error(result.message || 'เกิดข้อผิดพลาดในการลบสินค้า')
       }
-    } catch (error) {
-      alert('เกิดข้อผิดพลาดในการลบสินค้า')
+    } catch (err) {
+      console.error('Delete error:', err)
+      error('เกิดข้อผิดพลาดในการลบสินค้า')
     } finally {
       setDeleting(null)
+      hideLoading()
     }
   }
   
@@ -306,7 +324,7 @@ export default function ProductsClientPage({
                           {
                             label: 'ลบ',
                             icon: <Trash2 className="w-4 h-4" />,
-                            onClick: () => handleDelete(product.id, product.name),
+                            onClick: () => handleDelete(product.id, product.name, product.model),
                             className: 'text-red-600 hover:bg-red-50',
                             disabled: product.warrantyCount && product.warrantyCount > 0
                           }
@@ -320,6 +338,9 @@ export default function ProductsClientPage({
           </div>
         </div>
       )}
+      
+      {/* Render Dialog Components */}
+      {DialogComponents}
     </div>
   )
 }

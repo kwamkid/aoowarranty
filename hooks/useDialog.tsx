@@ -1,7 +1,7 @@
 // hooks/useDialog.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import AlertDialog from '@/components/ui/AlertDialog'
 
@@ -11,6 +11,7 @@ interface ConfirmOptions {
   type?: 'warning' | 'danger' | 'info' | 'success'
   confirmText?: string
   cancelText?: string
+  requireConfirmation?: string
 }
 
 interface AlertOptions {
@@ -24,6 +25,7 @@ export function useDialog() {
     isOpen: false,
     options: {} as ConfirmOptions,
     onConfirm: () => {},
+    onCancel: () => {},
     loading: false
   })
   
@@ -38,14 +40,26 @@ export function useDialog() {
       setConfirmState({
         isOpen: true,
         options,
-        onConfirm: () => resolve(true),
+        onConfirm: () => {
+          resolve(true)
+          closeConfirm()
+        },
+        onCancel: () => {
+          resolve(false)
+          closeConfirm()
+        },
         loading: false
       })
     })
   }
 
   const closeConfirm = () => {
-    setConfirmState(prev => ({ ...prev, isOpen: false }))
+    setConfirmState(prev => ({ 
+      ...prev, 
+      isOpen: false,
+      onConfirm: () => {},
+      onCancel: () => {}
+    }))
   }
 
   const setConfirmLoading = (loading: boolean) => {
@@ -89,11 +103,14 @@ export function useDialog() {
     <>
       <ConfirmDialog
         isOpen={confirmState.isOpen}
-        onClose={closeConfirm}
-        onConfirm={() => {
-          confirmState.onConfirm()
+        onClose={() => {
           if (!confirmState.loading) {
-            closeConfirm()
+            confirmState.onCancel()
+          }
+        }}
+        onConfirm={() => {
+          if (!confirmState.loading) {
+            confirmState.onConfirm()
           }
         }}
         title={confirmState.options.title || ''}
@@ -102,6 +119,7 @@ export function useDialog() {
         confirmText={confirmState.options.confirmText}
         cancelText={confirmState.options.cancelText}
         loading={confirmState.loading}
+        requireConfirmation={confirmState.options.requireConfirmation}
       />
       
       <AlertDialog
