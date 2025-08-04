@@ -23,6 +23,13 @@ export interface Company {
   isActive: boolean
   createdAt: Date
   createdBy: string
+  
+  // Statistics
+  totalUsers?: number
+  totalWarranties?: number
+  
+  // Suspension info
+  suspendedAt?: Date | null
 }
 
 export interface Brand {

@@ -17,7 +17,8 @@ const SYSTEM_PATHS = [
   '/apple-touch-icon.png',
   '/favicon-32x32.png',
   '/favicon-16x16.png',
-  '/site.webmanifest'
+  '/site.webmanifest',
+  '/logo.svg'
 ]
 
 export function middleware(request: NextRequest) {
@@ -87,14 +88,19 @@ export function middleware(request: NextRequest) {
     } else if (url.pathname === '/login') {
       url.pathname = '/tenant/login'
     } else if (url.pathname.startsWith('/admin')) {
-      // Admin routes require auth check
+      // Admin routes
       url.pathname = `/tenant/admin${url.pathname.slice(6)}`
     } else if (url.pathname === '/register') {
+      // Customer warranty registration (not company registration)
       url.pathname = '/tenant/register'
     } else if (url.pathname === '/my-warranties') {
       url.pathname = '/tenant/my-warranties'
-    } else if (url.pathname === '/login') {
-      url.pathname = '/tenant/login'
+    } else if (url.pathname.startsWith('/warranty/')) {
+      // Warranty detail pages
+      url.pathname = `/tenant${url.pathname}`
+    } else {
+      // All other tenant routes
+      url.pathname = `/tenant${url.pathname}`
     }
   } else {
     // No tenant: Main site routes

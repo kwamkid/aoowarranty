@@ -34,10 +34,45 @@ export async function getCompanyBySlug(slug: string): Promise<Company | null> {
     if (snapshot.empty) return null
     
     const doc = snapshot.docs[0]
-    return {
+    const data = doc.data()
+    
+    // Helper to convert Firestore Timestamp to Date string
+    const convertTimestamp = (timestamp: any): Date => {
+      if (timestamp && typeof timestamp === 'object' && '_seconds' in timestamp) {
+        // It's a Firestore Timestamp
+        return new Date(timestamp._seconds * 1000)
+      } else if (timestamp instanceof Date) {
+        return timestamp
+      } else if (typeof timestamp === 'string') {
+        return new Date(timestamp)
+      } else {
+        return new Date()
+      }
+    }
+    
+    // Convert Firestore data to Company type with proper serialization
+    const company: Company = {
       id: doc.id,
-      ...doc.data()
-    } as Company
+      name: data.name,
+      slug: data.slug,
+      logo: data.logo || '',
+      address: data.address,
+      amphoe: data.amphoe,
+      district: data.district,
+      province: data.province,
+      postcode: data.postcode,
+      phone: data.phone,
+      email: data.email,
+      website: data.website || '',
+      lineChannelId: data.lineChannelId || '',
+      isActive: data.isActive,
+      createdAt: convertTimestamp(data.createdAt),
+      createdBy: data.createdBy,
+      totalUsers: data.totalUsers || 0,
+      totalWarranties: data.totalWarranties || 0
+    }
+    
+    return company
   } catch (error) {
     console.error('Error fetching company:', error)
     return null
