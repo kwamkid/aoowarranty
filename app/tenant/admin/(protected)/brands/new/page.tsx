@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,8 +11,12 @@ import {
   Building2, 
   Upload, 
   Loader2,
-  X
+  X,
+  Info
 } from 'lucide-react'
+import { resizeImage, blobToFile, isValidImage, formatFileSize } from '@/lib/image-utils'
+import { useLoadingRouter } from '@/hooks/useLoadingRouter'
+import { useLoading } from '@/components/providers/LoadingProvider'
 
 // Validation schema
 const brandSchema = z.object({
@@ -26,7 +30,11 @@ export default function NewBrandPage() {
   const [loading, setLoading] = useState(false)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>('')
-  const router = useRouter()
+  const [resizing, setResizing] = useState(false)
+  const [originalSize, setOriginalSize] = useState(0)
+  const [resizedSize, setResizedSize] = useState(0)
+  const router = useLoadingRouter()
+  const { showLoading, hideLoading } = useLoading()
   
   const {
     register,
@@ -38,29 +46,53 @@ export default function NewBrandPage() {
   
   // Get tenant from URL
   const getTenant = () => {
+    if (typeof window === 'undefined') return ''
     const pathSegments = window.location.pathname.split('/')
     return pathSegments[1] // e.g., "abc-shop"
   }
   
-  const tenant = getTenant()
+  const [tenant, setTenant] = useState('')
   
-  // Handle logo upload
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Set tenant on client side
+  useEffect(() => {
+    setTenant(getTenant())
+  }, [])
+  
+  // Handle logo upload with resize
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB')
-        return
-      }
+    if (!file) return
+    
+    // Validate file type
+    if (!isValidImage(file)) {
+      alert('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WebP)')
+      return
+    }
+    
+    // Store original size
+    setOriginalSize(file.size)
+    setResizing(true)
+    
+    try {
+      // Resize image to max 500x500 with 80% quality
+      const resizedBlob = await resizeImage(file, 500, 500, 0.8)
+      const resizedFile = blobToFile(resizedBlob, file.name)
       
-      setLogoFile(file)
+      setResizedSize(resizedFile.size)
+      setLogoFile(resizedFile)
       
       // Create preview
       const reader = new FileReader()
       reader.onload = (e) => {
         setLogoPreview(e.target?.result as string)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(resizedFile)
+      
+    } catch (error) {
+      console.error('Error resizing image:', error)
+      alert('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ')
+    } finally {
+      setResizing(false)
     }
   }
   
@@ -68,11 +100,14 @@ export default function NewBrandPage() {
   const removeLogo = () => {
     setLogoFile(null)
     setLogoPreview('')
+    setOriginalSize(0)
+    setResizedSize(0)
   }
   
   // Submit form
   const onSubmit = async (data: BrandFormData) => {
     setLoading(true)
+    showLoading() // แสดง Shield Loading
     
     try {
       const formData = new FormData()
@@ -84,7 +119,7 @@ export default function NewBrandPage() {
         formData.append('logo', logoFile)
       }
       
-      const response = await fetch(`/${tenant}/api/brands`, {
+      const response = await fetch(`/api/brands`, {
         method: 'POST',
         body: formData
       })
@@ -94,9 +129,11 @@ export default function NewBrandPage() {
       if (result.success) {
         router.push(`/${tenant}/admin/brands`)
       } else {
+        hideLoading() // ซ่อน loading ถ้า error
         alert(result.message || 'เกิดข้อผิดพลาดในการเพิ่มแบรนด์')
       }
     } catch (error) {
+      hideLoading() // ซ่อน loading ถ้า error
       alert('เกิดข้อผิดพลาดในการเพิ่มแบรนด์')
     } finally {
       setLoading(false)
@@ -162,17 +199,46 @@ export default function NewBrandPage() {
                     onChange={handleLogoUpload}
                     className="hidden"
                     id="logo-upload"
+                    disabled={resizing}
                   />
                   <label
                     htmlFor="logo-upload"
-                    className="btn-outline cursor-pointer inline-flex items-center"
+                    className={`btn-outline cursor-pointer inline-flex items-center ${
+                      resizing ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
-                    <Upload className="w-4 h-4 mr-2" />
-                    เลือกรูปภาพ
+                    {resizing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        กำลังประมวลผล...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        เลือกรูปภาพ
+                      </>
+                    )}
                   </label>
                   <p className="text-xs text-secondary-500 mt-2">
-                    รองรับไฟล์ JPG, PNG ขนาดไม่เกิน 5MB
+                    รองรับไฟล์ JPG, PNG, WebP - ระบบจะย่อขนาดอัตโนมัติ
                   </p>
+                  
+                  {/* Show file size info */}
+                  {originalSize > 0 && resizedSize > 0 && (
+                    <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                      <div className="flex items-start space-x-2">
+                        <Info className="w-4 h-4 text-blue-600 mt-0.5" />
+                        <div className="text-xs text-blue-700">
+                          <p>ขนาดต้นฉบับ: {formatFileSize(originalSize)}</p>
+                          <p>ขนาดหลังย่อ: {formatFileSize(resizedSize)} 
+                            <span className="text-green-600 ml-1">
+                              (-{Math.round((1 - resizedSize / originalSize) * 100)}%)
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -219,7 +285,7 @@ export default function NewBrandPage() {
           
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || resizing}
             className="btn-primary flex items-center"
           >
             {loading ? (

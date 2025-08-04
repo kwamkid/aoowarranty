@@ -212,3 +212,146 @@ th {
     color-scheme: dark;
   }
 }
+
+/* Add this to your existing globals.css */
+
+/* Shield Loading Animations */
+
+/* Slow spin animation - โล่หมุนช้าๆ */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+/* Pulse with scale animation - โล่ขยายหดตัว */
+@keyframes pulse-scale {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-scale {
+  animation: pulse-scale 2s ease-in-out infinite;
+}
+
+/* Smooth bounce animation - โล่กระดอนขึ้นลง */
+@keyframes bounce-smooth {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  25% {
+    transform: translateY(-10px) scale(0.95);
+  }
+  50% {
+    transform: translateY(0) scale(1.05);
+  }
+  75% {
+    transform: translateY(-5px) scale(1);
+  }
+}
+
+.animate-bounce-smooth {
+  animation: bounce-smooth 2s ease-in-out infinite;
+}
+
+/* 3D flip animation - โล่หมุนพลิก 3D */
+@keyframes flip-3d {
+  0% {
+    transform: perspective(400px) rotateY(0);
+  }
+  50% {
+    transform: perspective(400px) rotateY(180deg);
+  }
+  100% {
+    transform: perspective(400px) rotateY(360deg);
+  }
+}
+
+.animate-flip-3d {
+  animation: flip-3d 3s ease-in-out infinite;
+}
+
+/* Shake animation - โล่สั่น (เหมือนป้องกันการโจมตี) */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  10% {
+    transform: translateX(-2px) rotate(-5deg);
+  }
+  20% {
+    transform: translateX(2px) rotate(5deg);
+  }
+  30% {
+    transform: translateX(-2px) rotate(-5deg);
+  }
+  40% {
+    transform: translateX(2px) rotate(5deg);
+  }
+  50% {
+    transform: translateX(0) rotate(0deg);
+  }
+}
+
+.animate-shake {
+  animation: shake 2s ease-in-out infinite;
+}
+
+/* Scanning line effect - เอฟเฟกต์แสงสแกน */
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-scan {
+  animation: scan 2s linear infinite;
+}
+
+/* Dialog Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}

@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { 
   LayoutDashboard, 
   Package, 
@@ -19,6 +19,8 @@ import {
   Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useLoadingRouter } from '@/hooks/useLoadingRouter'
+import { useLoading } from '@/components/providers/LoadingProvider'
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -77,7 +79,8 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const pathname = usePathname()
-  const router = useRouter()
+  const router = useLoadingRouter()
+  const { showLoading, hideLoading } = useLoading()
 
   // Get tenant from URL for navigation
   const getTenantPrefix = () => {
@@ -95,10 +98,17 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
     return tenant ? `/${tenant}${path}` : path
   }
 
+  // Handle navigation with loading
+  const handleNavigation = (href: string) => {
+    setSidebarOpen(false)
+    router.push(href)
+  }
+
   // Handle logout
   const handleLogout = async () => {
     try {
       setLoggingOut(true)
+      showLoading()
       
       // Call logout API with tenant in path
       const response = await fetch(`/api/auth/me`, { 
@@ -112,10 +122,12 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
       } else {
         console.error('Logout failed')
         setLoggingOut(false)
+        hideLoading()
       }
     } catch (error) {
       console.error('Logout error:', error)
       setLoggingOut(false)
+      hideLoading()
     }
   }
 
@@ -158,22 +170,25 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
               
               return (
                 <li key={item.href}>
-                  <Link
+                  <a
                     href={href}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleNavigation(href)
+                    }}
                     className={cn(
-                      "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                      "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer",
                       isActive
                         ? "bg-primary-50 text-primary-700 shadow-sm"
                         : "text-secondary-700 hover:bg-secondary-50"
                     )}
-                    onClick={() => setSidebarOpen(false)}
                   >
                     <item.icon 
                       className="w-5 h-5 mr-3 transition-colors"
                       style={{ color: isActive ? '#dc2626' : item.iconColor }}
                     />
                     {item.title}
-                  </Link>
+                  </a>
                 </li>
               )
             })}
@@ -182,13 +197,17 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
 
         {/* Customer Site Link */}
         <div className="absolute bottom-6 left-3 right-3">
-          <Link
+          <a
             href={buildHref('/')}
-            className="flex items-center px-3 py-2.5 text-sm font-medium text-secondary-700 hover:bg-secondary-50 rounded-lg transition-colors duration-200"
+            onClick={(e) => {
+              e.preventDefault()
+              handleNavigation(buildHref('/'))
+            }}
+            className="flex items-center px-3 py-2.5 text-sm font-medium text-secondary-700 hover:bg-secondary-50 rounded-lg transition-colors duration-200 cursor-pointer"
           >
             <Home className="w-5 h-5 mr-3" style={{ color: '#6366f1' }} />
             กลับหน้าลูกค้า
-          </Link>
+          </a>
         </div>
       </div>
 
@@ -277,20 +296,28 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg">
                     <div className="py-2">
-                      <Link 
+                      <a
                         href={buildHref('/admin/profile')} 
-                        className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50"
-                        onClick={() => setShowUserMenu(false)}
+                        className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setShowUserMenu(false)
+                          handleNavigation(buildHref('/admin/profile'))
+                        }}
                       >
                         ข้อมูลส่วนตัว
-                      </Link>
-                      <Link 
+                      </a>
+                      <a
                         href={buildHref('/admin/settings')} 
-                        className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50"
-                        onClick={() => setShowUserMenu(false)}
+                        className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setShowUserMenu(false)
+                          handleNavigation(buildHref('/admin/settings'))
+                        }}
                       >
                         ตั้งค่า
-                      </Link>
+                      </a>
                       <hr className="my-1 border-secondary-200" />
                       <button 
                         onClick={handleLogout}

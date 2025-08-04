@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Sans_Thai } from 'next/font/google'
 import './globals.css'
+import { LoadingProvider } from '@/components/providers/LoadingProvider'
 
 // Import suppress warnings in development
 if (process.env.NODE_ENV === 'development') {
@@ -69,9 +70,11 @@ export default function RootLayout({
         <script src="https://static.line-scdn.net/liff/edge/versions/2.22.0/sdk.js" async></script>
       </head>
       <body className={`${ibmPlexSansThai.className} antialiased bg-accent-50 text-secondary-800`}>
-        <div id="root">
-          {children}
-        </div>
+        <LoadingProvider>
+          <div id="root">
+            {children}
+          </div>
+        </LoadingProvider>
         
         {/* Global Scripts */}
         <div id="modal-root" />

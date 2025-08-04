@@ -9,9 +9,7 @@ import { z } from 'zod'
 import { 
   ArrowLeft, 
   Package, 
-  Upload, 
   Loader2,
-  X,
   Calendar,
   CheckSquare,
   Save
@@ -66,9 +64,6 @@ export default function EditProductClientPage({
   productId 
 }: EditProductClientPageProps) {
   const [loading, setLoading] = useState(false)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string>(initialProduct.image || '')
-  const [currentImage] = useState<string>(initialProduct.image || '')
   const router = useRouter()
   
   const {
@@ -91,32 +86,6 @@ export default function EditProductClientPage({
     }
   })
   
-  // Handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB')
-        return
-      }
-      
-      setImageFile(file)
-      
-      // Create preview
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-  
-  // Remove image
-  const removeImage = () => {
-    setImageFile(null)
-    setImagePreview('')
-  }
-  
   // Submit form
   const onSubmit = async (data: ProductFormData) => {
     setLoading(true)
@@ -138,14 +107,9 @@ export default function EditProductClientPage({
         purchaseLocation: data.requirePurchaseLocation
       }))
       
-      if (imageFile) {
-        formData.append('image', imageFile)
-      } else if (!imagePreview && currentImage) {
-        // Image was removed
-        formData.append('removeImage', 'true')
-      }
+      // No image upload - removed
       
-      const response = await fetch(`/${tenant}/api/products/${productId}`, {
+      const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         body: formData
       })
@@ -192,58 +156,6 @@ export default function EditProductClientPage({
           </h2>
           
           <div className="space-y-6">
-            {/* Product Image */}
-            <div>
-              <label className="block text-sm font-medium text-secondary-700 mb-2">
-                รูปภาพสินค้า
-              </label>
-              
-              <div className="flex items-start space-x-4">
-                {imagePreview ? (
-                  <div className="relative">
-                    <div className="w-32 h-32 rounded-lg overflow-hidden border-2 border-secondary-200">
-                      <img
-                        src={imagePreview}
-                        alt="Product preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-32 h-32 rounded-lg border-2 border-dashed border-secondary-300 flex items-center justify-center">
-                    <Package className="w-10 h-10 text-secondary-400" />
-                  </div>
-                )}
-                
-                <div className="flex-1">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="image-upload"
-                  />
-                  <label
-                    htmlFor="image-upload"
-                    className="btn-outline cursor-pointer inline-flex items-center"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    เลือกรูปภาพ
-                  </label>
-                  <p className="text-xs text-secondary-500 mt-2">
-                    รองรับไฟล์ JPG, PNG ขนาดไม่เกิน 5MB
-                  </p>
-                </div>
-              </div>
-            </div>
-            
             {/* Brand Selection */}
             <div>
               <label className="block text-sm font-medium text-secondary-700 mb-2">
