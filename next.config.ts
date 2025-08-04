@@ -59,26 +59,31 @@ const nextConfig: NextConfig = {
       }
     }
     
-    // Fix for Firebase Admin SDK source maps
-    config.module.rules.push({
-      test: /\.js$/,
-      include: /node_modules\/@google-cloud/,
-      use: {
-        loader: 'source-map-loader',
-      },
-      enforce: 'pre',
+    // Completely disable source-map-loader for @google-cloud modules
+    config.module.rules = config.module.rules.map(rule => {
+      if (rule.loader === 'source-map-loader') {
+        return {
+          ...rule,
+          exclude: [
+            ...(rule.exclude || []),
+            /@google-cloud/,
+            /firestore/,
+            /@firebase/,
+            /firebase-admin/,
+          ],
+        }
+      }
+      return rule
     })
     
-    // Ignore source map warnings for specific modules
+    // Add more comprehensive ignore warnings
     config.ignoreWarnings = [
-      {
-        module: /@google-cloud/,
-        message: /Failed to parse source map/,
-      },
-      {
-        module: /firestore/,
-        message: /Invalid source map/,
-      },
+      { module: /@google-cloud/ },
+      { module: /firestore/ },
+      { module: /@firebase/ },
+      { module: /firebase-admin/ },
+      { message: /Failed to parse source map/ },
+      { message: /Invalid source map/ },
     ]
     
     return config
