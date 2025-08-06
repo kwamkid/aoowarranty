@@ -2,6 +2,8 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { format, addYears, addMonths, addDays, isBefore, isAfter } from 'date-fns'
+import { differenceInDays, differenceInMonths, differenceInYears } from 'date-fns'
+
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -90,20 +92,28 @@ export function getDaysUntilExpiry(expiryDate: string): number {
 export function getTimeUntilExpiry(expiryDate: string): string {
   const expiry = new Date(expiryDate)
   const today = new Date()
-  const diffTime = expiry.getTime() - today.getTime()
-  const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   
-  if (totalDays < 0) {
+  // ถ้าหมดอายุแล้ว
+  if (expiry < today) {
     return 'หมดอายุแล้ว'
   }
+  
+  // คำนวณความแตกต่าง
+  const totalDays = differenceInDays(expiry, today)
   
   if (totalDays === 0) {
     return 'วันนี้'
   }
   
-  const years = Math.floor(totalDays / 365)
-  const months = Math.floor((totalDays % 365) / 30)
-  const days = totalDays % 30
+  // คำนวณปี เดือน วัน แบบถูกต้อง
+  const years = differenceInYears(expiry, today)
+  const monthsAfterYears = differenceInMonths(expiry, today) - (years * 12)
+  
+  // คำนวณวันที่เหลือหลังจากหักปีและเดือน
+  let tempDate = new Date(today)
+  tempDate.setFullYear(tempDate.getFullYear() + years)
+  tempDate.setMonth(tempDate.getMonth() + monthsAfterYears)
+  const days = differenceInDays(expiry, tempDate)
   
   const parts = []
   
@@ -111,8 +121,8 @@ export function getTimeUntilExpiry(expiryDate: string): string {
     parts.push(`${years} ปี`)
   }
   
-  if (months > 0) {
-    parts.push(`${months} เดือน`)
+  if (monthsAfterYears > 0) {
+    parts.push(`${monthsAfterYears} เดือน`)
   }
   
   if (days > 0 || parts.length === 0) {

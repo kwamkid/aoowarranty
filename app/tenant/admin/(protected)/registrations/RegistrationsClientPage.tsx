@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
@@ -21,6 +21,7 @@ import {
   XCircle
 } from 'lucide-react'
 import { formatDate, isWarrantyActive, getDaysUntilExpiry } from '@/lib/utils'
+import { exportWarrantiesToExcel, exportFilteredWarranties } from '@/lib/excel-export'
 
 interface Warranty {
   id: string
@@ -67,6 +68,8 @@ export default function RegistrationsClientPage({
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'claimed'>('all')
   const [brandFilter, setBrandFilter] = useState<string>('all')
+  const [isExporting, setIsExporting] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const router = useRouter()
   
   // Get unique brands for filter
@@ -90,6 +93,48 @@ export default function RegistrationsClientPage({
     
     return matchesSearch && matchesStatus && matchesBrand
   })
+  
+  // Handle export
+  const handleExport = async (type: 'all' | 'filtered') => {
+    setIsExporting(true)
+    setShowExportMenu(false)
+    
+    try {
+      // หา company name จาก warranty data หรือใช้ tenant
+      const companyName = tenant || 'Company'
+      
+      if (type === 'all') {
+        // Export ข้อมูลทั้งหมด
+        exportWarrantiesToExcel(warranties, companyName)
+      } else {
+        // Export เฉพาะข้อมูลที่กรองแล้ว
+        const filters = {
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          brandName: brandFilter !== 'all' ? brandFilter : undefined
+        }
+        exportFilteredWarranties(filteredWarranties, companyName, filters)
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.export-dropdown')) {
+        setShowExportMenu(false)
+      }
+    }
+    
+    if (showExportMenu) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showExportMenu])
   
   // Get status badge
   const getStatusBadge = (warranty: Warranty) => {
@@ -137,10 +182,62 @@ export default function RegistrationsClientPage({
           </p>
         </div>
         
-        <button className="btn-primary inline-flex items-center justify-center">
-          <Download className="w-5 h-5 mr-2" />
-          Export Excel
-        </button>
+        <div className="relative export-dropdown">
+          <button 
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            disabled={isExporting || warranties.length === 0}
+            className="btn-primary inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExporting ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                กำลังส่งออก...
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5 mr-2" />
+                Export Excel
+                <ChevronDown className="w-4 h-4 ml-1" />
+              </>
+            )}
+          </button>
+          
+          {/* Dropdown Menu */}
+          {showExportMenu && !isExporting && (
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-secondary-200 rounded-lg shadow-lg z-10">
+              <button
+                onClick={() => handleExport('all')}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-secondary-50 flex items-center"
+              >
+                <FileText className="w-4 h-4 mr-2 text-secondary-500" />
+                <div>
+                  <div className="font-medium">ส่งออกทั้งหมด</div>
+                  <div className="text-xs text-secondary-500">
+                    {warranties.length} รายการ
+                  </div>
+                </div>
+              </button>
+              
+              {(statusFilter !== 'all' || brandFilter !== 'all' || searchTerm) && (
+                <>
+                  <div className="border-t border-secondary-100" />
+                  <button
+                    onClick={() => handleExport('filtered')}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-secondary-50 flex items-center"
+                  >
+                    <Filter className="w-4 h-4 mr-2 text-secondary-500" />
+                    <div>
+                      <div className="font-medium">ส่งออกที่กรองแล้ว</div>
+                      <div className="text-xs text-secondary-500">
+                        {filteredWarranties.length} รายการ
+                      </div>
+                    </div>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Filters */}
