@@ -46,6 +46,7 @@ export default function AdminLoginPage() {
         const parts = hostname.split('.')
         if (parts.length >= 2 && parts[0] !== 'www') {
           setTenant(parts[0])
+          console.log('Tenant from subdomain:', parts[0])
           return
         }
       }
@@ -54,6 +55,7 @@ export default function AdminLoginPage() {
       const pathSegments = pathname.split('/')
       if (pathSegments[1] && pathSegments[1] !== 'admin') {
         setTenant(pathSegments[1])
+        console.log('Tenant from path:', pathSegments[1])
       }
     }
   }, [pathname])
@@ -94,6 +96,8 @@ export default function AdminLoginPage() {
         return
       }
       
+      console.log('Submitting login with tenant:', tenant)
+      
       // Call API with tenant information
       const response = await fetch('/api/auth/admin-login', {
         method: 'POST',
@@ -101,10 +105,15 @@ export default function AdminLoginPage() {
           'Content-Type': 'application/json',
           'x-tenant': tenant
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          ...data,
+          tenant: tenant // เพิ่ม tenant ใน body เผื่อ header ไม่ผ่าน
+        })
       })
       
       const result = await response.json()
+      
+      console.log('Login response:', result)
       
       if (result.success) {
         // Build correct redirect URL based on environment
@@ -122,6 +131,11 @@ export default function AdminLoginPage() {
         router.refresh()
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+        
+        // Show debug info if available
+        if (result.debug) {
+          console.error('Login debug info:', result.debug)
+        }
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -265,6 +279,18 @@ export default function AdminLoginPage() {
             </div>
           )}
         </div>
+        
+        {/* Additional Debug for Production */}
+        {mounted && !tenant && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              ⚠️ ไม่พบข้อมูลบริษัท กรุณาตรวจสอบ URL
+            </p>
+            <p className="text-xs text-yellow-700 mt-1">
+              URL: {typeof window !== 'undefined' ? window.location.href : ''}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

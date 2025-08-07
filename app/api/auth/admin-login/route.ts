@@ -9,7 +9,7 @@ import { verifyPassword } from '@/lib/crypto-utils'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password } = body
+    const { email, password, tenant: bodyTenant } = body
     
     // Get tenant from headers
     const headersList = await headers()
@@ -23,15 +23,30 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Try from body if provided
+    if (!tenant && bodyTenant) {
+      tenant = bodyTenant
+      console.log('Using tenant from request body:', tenant)
+    }
+    
     // Try to extract from host header
     if (!tenant) {
       const host = headersList.get('host') || ''
       
       // Check if it's a subdomain in production
       if (!host.includes('localhost') && !host.includes('127.0.0.1')) {
-        const parts = host.split('.')
-        if (parts.length >= 2 && parts[0] !== 'www') {
-          tenant = parts[0]
+        // Direct extraction for aoowarranty.com subdomain
+        // Pattern: abc-shop.aoowarranty.com -> abc-shop
+        const match = host.match(/^([^.]+)\.aoowarranty\.com/)
+        if (match && match[1] !== 'www') {
+          tenant = match[1]
+          console.log('Extracted tenant from production subdomain:', tenant)
+        } else {
+          // Fallback to original method
+          const parts = host.split('.')
+          if (parts.length >= 2 && parts[0] !== 'www') {
+            tenant = parts[0]
+          }
         }
       }
     }
@@ -61,12 +76,21 @@ export async function POST(request: NextRequest) {
     console.log('Email:', email)
     console.log('Host:', headersList.get('host'))
     console.log('Referer:', headersList.get('referer'))
+    console.log('Environment:', process.env.NODE_ENV)
+    console.log('Raw Request Headers:', Object.fromEntries(request.headers.entries()))
     console.log('=====================')
     
     if (!tenant) {
       return NextResponse.json({
         success: false,
-        message: 'ไม่พบข้อมูลบริษัท'
+        message: 'ไม่พบข้อมูลบริษัท',
+        debug: {
+          host: headersList.get('host'),
+          referer: headersList.get('referer'),
+          xTenant: headersList.get('x-tenant'),
+          clientTenant: request.headers.get('x-tenant'),
+          environment: process.env.NODE_ENV
+        }
       }, { status: 400 })
     }
     
@@ -79,9 +103,22 @@ export async function POST(request: NextRequest) {
     
     if (companiesSnapshot.empty) {
       console.log('Company not found for tenant:', tenant)
+      
+      // Debug: List all companies
+      const allCompanies = await adminDb.collection('companies').get()
+      console.log('All companies in DB:')
+      allCompanies.docs.forEach(doc => {
+        const data = doc.data()
+        console.log(`- ${data.name}: slug="${data.slug}", active=${data.isActive}`)
+      })
+      
       return NextResponse.json({
         success: false,
-        message: 'ไม่พบข้อมูลบริษัท'
+        message: 'ไม่พบข้อมูลบริษัท',
+        debug: {
+          searchedSlug: tenant,
+          totalCompanies: allCompanies.size
+        }
       }, { status: 404 })
     }
     
@@ -100,6 +137,29 @@ export async function POST(request: NextRequest) {
     
     if (usersSnapshot.empty) {
       console.log('User not found:', email, 'in company:', companyId)
+      
+      // Debug: Check if user exists in other companies
+      const userInOtherCompany = await adminDb.collection('users')
+        .where('email', '==', email)
+        .get()
+      
+      if (!userInOtherCompany.empty) {
+        const otherUser = userInOtherCompany.docs[0].data()
+        console.log('User found in different company:', otherUser.companyId)
+        console.log('User isActive:', otherUser.isActive)
+      }
+      
+      // Debug: List all users in this company
+      const allUsersInCompany = await adminDb.collection('users')
+        .where('companyId', '==', companyId)
+        .get()
+      
+      console.log('All users in company', companyId, ':')
+      allUsersInCompany.docs.forEach(doc => {
+        const userData = doc.data()
+        console.log(`- ${userData.email}: active=${userData.isActive}, role=${userData.role}`)
+      })
+      
       return NextResponse.json({
         success: false,
         message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
@@ -109,17 +169,21 @@ export async function POST(request: NextRequest) {
     const userDoc = usersSnapshot.docs[0]
     const userData = userDoc.data()
     
+    console.log('User found:', userData.email)
+    console.log('Has password:', !!userData.password)
+    console.log('Has passwordHash:', !!userData.passwordHash)
+    
     // Check password with hash
     let passwordMatch = false
     
     if (userData.passwordHash) {
       // User has hashed password
       passwordMatch = verifyPassword(password, userData.passwordHash)
-      console.log('Checking hashed password')
+      console.log('Checking hashed password - match:', passwordMatch)
     } else if (userData.password) {
       // Old user with plain text password
       passwordMatch = userData.password === password
-      console.log('Checking plain text password (legacy)')
+      console.log('Checking plain text password (legacy) - match:', passwordMatch)
       
       // Auto-migrate to hashed password
       if (passwordMatch) {
@@ -180,10 +244,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Set domain for production subdomain
-    if (isProduction && process.env.NEXT_PUBLIC_APP_DOMAIN) {
-      // Use wildcard domain to share cookie across subdomains
-      cookieOptions.domain = `.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
-      console.log('Setting cookie domain:', cookieOptions.domain)
+    if (isProduction) {
+      // Don't set domain - let browser handle it automatically
+      // This ensures cookie works for the specific subdomain
+      console.log('Production mode - not setting cookie domain')
     }
     
     cookieStore.set('auth-session', JSON.stringify(sessionData), cookieOptions)
@@ -208,6 +272,7 @@ export async function POST(request: NextRequest) {
     
   } catch (error: any) {
     console.error('Login error:', error)
+    console.error('Stack trace:', error.stack)
     
     return NextResponse.json({
       success: false,
