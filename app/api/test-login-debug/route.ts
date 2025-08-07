@@ -28,14 +28,18 @@ export async function POST(request: NextRequest) {
       .where('slug', '==', tenant)
       .get()
     
-    const companyData = companyQuery.empty ? null : {
-      id: companyQuery.docs[0].id,
-      ...companyQuery.docs[0].data()
+    let companyData: any = null
+    if (!companyQuery.empty) {
+      const doc = companyQuery.docs[0]
+      companyData = {
+        id: doc.id,
+        ...doc.data()
+      }
     }
     
     // Find user
-    let userData = null
-    let allUserData = null
+    let userData: any = null
+    let allUserData: any[] = []
     
     if (companyData) {
       const userQuery = await adminDb.collection('users')
@@ -43,9 +47,12 @@ export async function POST(request: NextRequest) {
         .where('companyId', '==', companyData.id)
         .get()
       
-      userData = userQuery.empty ? null : {
-        id: userQuery.docs[0].id,
-        ...userQuery.docs[0].data()
+      if (!userQuery.empty) {
+        const userDoc = userQuery.docs[0]
+        userData = {
+          id: userDoc.id,
+          ...userDoc.data()
+        }
       }
     }
     
@@ -79,8 +86,8 @@ export async function POST(request: NextRequest) {
         userIsActive: userData?.isActive,
         hasPassword: !!userData?.password,
         hasPasswordHash: !!userData?.passwordHash,
-        userFoundInOtherCompanies: allUserData ? allUserData.length : 0,
-        allUserCompanies: allUserData?.map(u => ({
+        userFoundInOtherCompanies: allUserData.length,
+        allUserCompanies: allUserData.map(u => ({
           companyId: u.companyId,
           isActive: u.isActive
         }))
