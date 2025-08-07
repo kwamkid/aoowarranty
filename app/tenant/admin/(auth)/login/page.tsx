@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -20,7 +20,10 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [tenant, setTenant] = useState<string>('')
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   
   const {
     register,
@@ -31,48 +34,45 @@ export default function AdminLoginPage() {
     resolver: zodResolver(loginSchema)
   })
   
-  // Get tenant from URL
-  const getTenant = () => {
-    if (typeof window === 'undefined') return ''
-    
-    const hostname = window.location.hostname
-    const pathname = window.location.pathname
-    
-    // Check if production (subdomain)
-    if (!hostname.includes('localhost')) {
-      // Extract subdomain from hostname like abc-shop.aoowarranty.com
-      const parts = hostname.split('.')
-      if (parts.length >= 2 && parts[0] !== 'www') {
-        return parts[0]
-      }
-    } else {
-      // Development - extract from pathname like /abc-shop/admin/login
-      const pathSegments = pathname.split('/')
-      if (pathSegments[1] && pathSegments[1] !== 'admin') {
-        return pathSegments[1]
-      }
+  // Extract tenant from pathname (works on both server and client)
+  const getTenantFromPath = () => {
+    // pathname could be /abc-shop/admin/login
+    const pathSegments = pathname.split('/')
+    if (pathSegments[1] && pathSegments[1] !== 'admin') {
+      return pathSegments[1]
     }
-    
     return ''
   }
   
-  // Build redirect URL based on environment
-  const buildAdminUrl = (tenant: string) => {
-    if (typeof window === 'undefined') return '/'
+  // Set mounted state and detect tenant
+  useEffect(() => {
+    setMounted(true)
     
-    const hostname = window.location.hostname
-    
-    // Production with subdomain
-    if (!hostname.includes('localhost')) {
-      return '/admin'
+    // After mount, we can use window to detect production subdomain
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname
+      
+      // Check if production (subdomain)
+      if (!hostname.includes('localhost')) {
+        const parts = hostname.split('.')
+        if (parts.length >= 2 && parts[0] !== 'www') {
+          setTenant(parts[0])
+          return
+        }
+      }
     }
     
-    // Development with path
-    return `/${tenant}/admin`
-  }
+    // Otherwise use path-based tenant
+    const pathTenant = getTenantFromPath()
+    if (pathTenant) {
+      setTenant(pathTenant)
+    }
+  }, [pathname])
   
   // Check for auto-fill data from sessionStorage
   useEffect(() => {
+    if (!mounted) return
+    
     const tempEmail = sessionStorage.getItem('temp-email')
     const tempPassword = sessionStorage.getItem('temp-password')
     
@@ -92,15 +92,13 @@ export default function AdminLoginPage() {
         }
       }, 100)
     }
-  }, [setValue])
+  }, [mounted, setValue])
   
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true)
     setError('')
     
     try {
-      const tenant = getTenant()
-      
       if (!tenant) {
         setError('ไม่พบข้อมูลบริษัท')
         setLoading(false)
@@ -112,7 +110,7 @@ export default function AdminLoginPage() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-tenant': tenant // Send tenant in header
+          'x-tenant': tenant
         },
         body: JSON.stringify(data)
       })
@@ -120,9 +118,18 @@ export default function AdminLoginPage() {
       const result = await response.json()
       
       if (result.success) {
-        // Redirect to admin dashboard with proper URL
-        const adminUrl = buildAdminUrl(tenant)
-        window.location.href = adminUrl // Use window.location for full reload
+        // Redirect based on environment
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname
+          
+          if (!hostname.includes('localhost')) {
+            // Production - use subdomain
+            window.location.href = '/admin'
+          } else {
+            // Development - use path
+            window.location.href = `/${tenant}/admin`
+          }
+        }
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       }
@@ -133,28 +140,16 @@ export default function AdminLoginPage() {
     }
   }
   
-  // Build back button URL
-  const getBackUrl = () => {
-    const tenant = getTenant()
-    if (!tenant) return '/'
-    
-    const hostname = window.location.hostname
-    
-    // Production
-    if (!hostname.includes('localhost')) {
-      return '/'
-    }
-    
-    // Development
-    return `/${tenant}`
-  }
+  // Get initial back URL from pathname (SSR safe)
+  const pathTenant = getTenantFromPath()
+  const initialBackUrl = pathTenant ? `/${pathTenant}` : '/'
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Back Button */}
+        {/* Back Button - Use dynamic href only after mount */}
         <Link 
-          href={getBackUrl()} 
+          href={mounted && tenant ? `/${tenant}` : initialBackUrl}
           className="inline-flex items-center text-secondary-600 hover:text-secondary-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -239,7 +234,7 @@ export default function AdminLoginPage() {
             
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !mounted}
               className="btn-primary w-full flex items-center justify-center"
             >
               {loading ? (
@@ -256,12 +251,12 @@ export default function AdminLoginPage() {
             </button>
           </form>
           
-          {/* Debug Info - Remove in production */}
-          {process.env.NODE_ENV === 'development' && (
+          {/* Debug Info - Only show after mount */}
+          {process.env.NODE_ENV === 'development' && mounted && (
             <div className="mt-6 pt-6 border-t border-secondary-200">
               <p className="text-xs text-secondary-500 text-center">
-                Tenant: {getTenant() || 'Not detected'}<br />
-                Environment: {typeof window !== 'undefined' && window.location.hostname}
+                Tenant: {tenant || 'Not detected'}<br />
+                Path: {pathname}
               </p>
             </div>
           )}
