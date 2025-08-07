@@ -125,6 +125,7 @@ export default function LandingPage() {
 
  // เพิ่มใน handleLogin function ของ app/page.tsx
 
+// แก้ไขใน app/page.tsx - handleLogin function
 const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault()
   setLoading(true)
@@ -169,19 +170,33 @@ const handleLogin = async (e: React.FormEvent) => {
       setEmail('')
       setPassword('')
       
-      // Redirect to admin dashboard immediately
-      if (result.redirectUrl) {
-        window.location.href = result.redirectUrl
+      // FIXED: Build correct redirect URL for production
+      const companySlug = result.company.slug
+      const currentHost = window.location.hostname
+      
+      let redirectUrl = ''
+      
+      if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+        // Development
+        redirectUrl = `http://localhost:3000/${companySlug}/admin`
       } else {
-        // Fallback if no redirectUrl provided
-        const domain = window.location.hostname
-        if (domain === 'localhost' || domain === '127.0.0.1') {
-          window.location.href = `/${result.company.slug}/admin`
-        } else {
-          // Production - use full subdomain URL
-          window.location.href = `https://${result.company.slug}.${domain.replace('www.', '')}/admin`
+        // Production - extract base domain properly
+        let baseDomain = currentHost
+        
+        // Remove www. if present
+        if (baseDomain.startsWith('www.')) {
+          baseDomain = baseDomain.substring(4)
         }
+        
+        // Build subdomain URL
+        redirectUrl = `https://${companySlug}.${baseDomain}/admin`
       }
+      
+      console.log('Redirecting to:', redirectUrl)
+      
+      // Use location.href for full page redirect
+      window.location.href = redirectUrl
+      
     } else {
       setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       

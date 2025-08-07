@@ -27,19 +27,26 @@ export function middleware(request: NextRequest) {
     }
   } else {
     // Production: extract from actual subdomain
-    // abc-shop.aoowarranty.com → subdomain = abc-shop
+    // Special handling for aoowarranty.com (2-part domain)
     const parts = hostname.split('.')
     
-    // Check for subdomain (not www)
-    if (parts.length >= 2) {
-      // For aoowarranty.com: [abc-shop, aoowarranty, com]
-      // For www.aoowarranty.com: [www, aoowarranty, com]
+    // For aoowarranty.com structure:
+    // - www.aoowarranty.com → no subdomain
+    // - aoowarranty.com → no subdomain  
+    // - abc-shop.aoowarranty.com → subdomain = abc-shop
+    
+    if (parts.length === 3 && parts[1] === 'aoowarranty' && parts[2] === 'com') {
+      // Format: [subdomain].aoowarranty.com
+      if (parts[0] !== 'www') {
+        subdomain = parts[0]
+      }
+    } else if (parts.length === 2 && parts[0] === 'aoowarranty' && parts[1] === 'com') {
+      // Format: aoowarranty.com (no subdomain)
+      subdomain = ''
+    } else if (parts.length >= 3) {
+      // Other domains with 3+ parts
       const possibleSubdomain = parts[0]
-      
-      // Only treat as subdomain if not 'www' and not the main domain
-      if (possibleSubdomain !== 'www' && 
-          possibleSubdomain !== 'aoowarranty' &&
-          possibleSubdomain !== 'warrantyhub') {
+      if (possibleSubdomain !== 'www') {
         subdomain = possibleSubdomain
       }
     }
