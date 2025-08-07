@@ -123,7 +123,7 @@ export default function LandingPage() {
     }
   ]
 
-  // เพิ่มใน handleLogin function ของ app/page.tsx
+ // เพิ่มใน handleLogin function ของ app/page.tsx
 
 const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault()
@@ -170,7 +170,18 @@ const handleLogin = async (e: React.FormEvent) => {
       setPassword('')
       
       // Redirect to admin dashboard immediately
-      window.location.href = result.redirectUrl
+      if (result.redirectUrl) {
+        window.location.href = result.redirectUrl
+      } else {
+        // Fallback if no redirectUrl provided
+        const domain = window.location.hostname
+        if (domain === 'localhost' || domain === '127.0.0.1') {
+          window.location.href = `/${result.company.slug}/admin`
+        } else {
+          // Production - use full subdomain URL
+          window.location.href = `https://${result.company.slug}.${domain.replace('www.', '')}/admin`
+        }
+      }
     } else {
       setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       
@@ -204,33 +215,37 @@ const handleLogin = async (e: React.FormEvent) => {
     }
   }
 
-  // Go to admin dashboard
-  const goToAdmin = () => {
-    if (!userSession) return
-    
-    const isDevelopment = window.location.hostname === 'localhost' || 
-                         window.location.hostname === '127.0.0.1'
-    
-    if (isDevelopment) {
-      window.location.href = `http://localhost:3000/${userSession.companySlug}/admin`
-    } else {
-      const domain = window.location.hostname.replace('www.', '')
-      window.location.href = `https://${userSession.companySlug}.${domain}/admin`
-    }
-  }
+  // ใน app/page.tsx - แก้ไข function goToAdmin
 
-  // Build company customer URL
-  const buildCompanyUrl = (companySlug: string) => {
-    const isDevelopment = window.location.hostname === 'localhost' || 
-                         window.location.hostname === '127.0.0.1'
-    
-    if (isDevelopment) {
-      return `http://localhost:3000/${companySlug}`
-    } else {
-      const domain = window.location.hostname.replace('www.', '')
-      return `https://${companySlug}.${domain}`
-    }
+// Go to admin dashboard
+const goToAdmin = () => {
+  if (!userSession) return
+  
+  const hostname = window.location.hostname
+  const isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1'
+  
+  if (isDevelopment) {
+    window.location.href = `http://localhost:3000/${userSession.companySlug}/admin`
+  } else {
+    // Production - remove www if present
+    const domain = hostname.replace('www.', '')
+    window.location.href = `https://${userSession.companySlug}.${domain}/admin`
   }
+}
+
+// และแก้ function buildCompanyUrl ด้วย
+const buildCompanyUrl = (companySlug: string) => {
+  const hostname = window.location.hostname
+  const isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1'
+  
+  if (isDevelopment) {
+    return `http://localhost:3000/${companySlug}`
+  } else {
+    // Production - remove www if present
+    const domain = hostname.replace('www.', '')
+    return `https://${companySlug}.${domain}`
+  }
+}
 
   return (
     <div className="min-h-screen bg-white">

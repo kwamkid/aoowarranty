@@ -261,13 +261,14 @@ export async function POST(request: NextRequest) {
 
 // Helper function to build redirect URL
 function getRedirectUrl(companySlug: string): string {
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  // Use NEXT_PUBLIC_APP_DOMAIN to determine environment
+  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+  const isDevelopment = appDomain.includes('localhost')
   
   if (isDevelopment) {
     return `http://localhost:3000/${companySlug}/admin`
   } else {
-    // Get domain from environment or use default
-    const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
-    return `https://${companySlug}.${domain}/admin`
+    // Production - use subdomain pattern
+    return `https://${companySlug}.${appDomain}/admin`
   }
 }
