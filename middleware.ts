@@ -7,7 +7,7 @@ export function middleware(request: NextRequest) {
   
   // Extract subdomain
   let subdomain = ''
-  let isLocalhost = hostname.includes('localhost')
+  let isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1')
   
   if (isLocalhost) {
     // For localhost, get tenant from path
@@ -37,6 +37,7 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-tenant', subdomain)
   requestHeaders.set('x-tenant-host', isLocalhost ? 'localhost' : 'production')
+  requestHeaders.set('x-original-hostname', hostname)
   
   // Special handling for tenant routes
   if (subdomain) {
@@ -54,10 +55,11 @@ export function middleware(request: NextRequest) {
     // Debug logging in development
     if (process.env.NODE_ENV === 'development') {
       console.log('=== Middleware Debug ===')
+      console.log('Hostname:', hostname)
       console.log('Original path:', request.nextUrl.pathname)
       console.log('Rewritten path:', url.pathname)
       console.log('Subdomain:', subdomain)
-      console.log('Host:', hostname)
+      console.log('Is localhost:', isLocalhost)
       console.log('=======================')
     }
   }

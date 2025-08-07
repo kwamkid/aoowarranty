@@ -11,23 +11,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email, password } = body
     
-    // Get tenant from multiple sources
+    // Get tenant from headers
     const headersList = await headers()
-    
-    // 1. Try x-tenant header from middleware
     let tenant = headersList.get('x-tenant') || ''
     
-    // 2. If not from middleware, try from request header (sent by client)
+    // If not from middleware, try from request header (sent by client)
     if (!tenant) {
-      tenant = headersList.get('x-tenant') || ''
+      const clientTenant = request.headers.get('x-tenant')
+      if (clientTenant) {
+        tenant = clientTenant
+      }
     }
     
-    // 3. Try to extract from host header (for production)
+    // Try to extract from host header
     if (!tenant) {
       const host = headersList.get('host') || ''
       
-      // Check if it's a subdomain
-      if (!host.includes('localhost')) {
+      // Check if it's a subdomain in production
+      if (!host.includes('localhost') && !host.includes('127.0.0.1')) {
         const parts = host.split('.')
         if (parts.length >= 2 && parts[0] !== 'www') {
           tenant = parts[0]
@@ -35,12 +36,12 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // 4. Try from referer as last resort
+    // Try from referer as last resort
     if (!tenant) {
       const referer = headersList.get('referer') || ''
       
       // Production pattern: https://abc-shop.aoowarranty.com/admin/login
-      if (!referer.includes('localhost')) {
+      if (!referer.includes('localhost') && !referer.includes('127.0.0.1')) {
         const url = new URL(referer)
         const hostParts = url.hostname.split('.')
         if (hostParts.length >= 2 && hostParts[0] !== 'www') {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
       passwordMatch = userData.password === password
       console.log('Checking plain text password (legacy)')
       
-      // Optional: Auto-migrate to hashed password
+      // Auto-migrate to hashed password
       if (passwordMatch) {
         try {
           const { hashPassword } = await import('@/lib/crypto-utils')
@@ -164,7 +165,8 @@ export async function POST(request: NextRequest) {
     
     // Set cookie with proper domain for production
     const cookieStore = await cookies()
-    const isProduction = !request.url.includes('localhost')
+    const host = headersList.get('host') || ''
+    const isProduction = !host.includes('localhost') && !host.includes('127.0.0.1')
     
     // Cookie options
     const cookieOptions: any = {
@@ -176,10 +178,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Set domain for production subdomain
-    if (isProduction) {
-      // Get base domain from environment or use default
-      const baseDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
-      cookieOptions.domain = `.${baseDomain}` // Allow cookie across subdomains
+    if (isProduction && process.env.NEXT_PUBLIC_APP_DOMAIN) {
+      // Use wildcard domain to share cookie across subdomains
+      cookieOptions.domain = `.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
+      console.log('Setting cookie domain:', cookieOptions.domain)
     }
     
     cookieStore.set('auth-session', JSON.stringify(sessionData), cookieOptions)

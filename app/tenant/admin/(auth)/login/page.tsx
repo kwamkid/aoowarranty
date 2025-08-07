@@ -34,21 +34,10 @@ export default function AdminLoginPage() {
     resolver: zodResolver(loginSchema)
   })
   
-  // Extract tenant from pathname (works on both server and client)
-  const getTenantFromPath = () => {
-    // pathname could be /abc-shop/admin/login
-    const pathSegments = pathname.split('/')
-    if (pathSegments[1] && pathSegments[1] !== 'admin') {
-      return pathSegments[1]
-    }
-    return ''
-  }
-  
-  // Set mounted state and detect tenant
+  // Extract tenant from pathname or hostname
   useEffect(() => {
     setMounted(true)
     
-    // After mount, we can use window to detect production subdomain
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname
       
@@ -60,12 +49,12 @@ export default function AdminLoginPage() {
           return
         }
       }
-    }
-    
-    // Otherwise use path-based tenant
-    const pathTenant = getTenantFromPath()
-    if (pathTenant) {
-      setTenant(pathTenant)
+      
+      // Development - get from pathname
+      const pathSegments = pathname.split('/')
+      if (pathSegments[1] && pathSegments[1] !== 'admin') {
+        setTenant(pathSegments[1])
+      }
     }
   }, [pathname])
   
@@ -105,6 +94,14 @@ export default function AdminLoginPage() {
         return
       }
       
+      // Debug log
+      console.log('Login Debug:', {
+        tenant,
+        hostname: window.location.hostname,
+        pathname,
+        isProduction: !window.location.hostname.includes('localhost')
+      })
+      
       // Call API with tenant information
       const response = await fetch('/api/auth/admin-login', {
         method: 'POST',
@@ -118,16 +115,9 @@ export default function AdminLoginPage() {
       const result = await response.json()
       
       if (result.success) {
-        // Use router.push instead of window.location for better control
-        const hostname = window.location.hostname
-        
-        if (!hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
-          // Production - stay on subdomain
-          router.push('/admin')
-        } else {
-          // Development - use path with tenant
-          router.push(`/${tenant}/admin`)
-        }
+        // Always use relative path to stay on same domain
+        router.push('/admin')
+        router.refresh()
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       }
@@ -139,16 +129,28 @@ export default function AdminLoginPage() {
     }
   }
   
-  // Get initial back URL from pathname (SSR safe)
-  const pathTenant = getTenantFromPath()
-  const initialBackUrl = pathTenant ? `/${pathTenant}` : '/'
+  // Build back URL based on environment
+  const getBackUrl = () => {
+    if (!mounted) return '/'
+    
+    const hostname = window.location.hostname
+    const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
+    
+    if (isProduction) {
+      // Production - relative path
+      return '/'
+    } else {
+      // Development - with tenant
+      return tenant ? `/${tenant}` : '/'
+    }
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Back Button - Use dynamic href only after mount */}
+        {/* Back Button */}
         <Link 
-          href={mounted && tenant ? `/${tenant}` : initialBackUrl}
+          href={getBackUrl()}
           className="inline-flex items-center text-secondary-600 hover:text-secondary-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -233,7 +235,7 @@ export default function AdminLoginPage() {
             
             <button
               type="submit"
-              disabled={loading || !mounted}
+              disabled={loading || !mounted || !tenant}
               className="btn-primary w-full flex items-center justify-center"
             >
               {loading ? (
@@ -250,7 +252,7 @@ export default function AdminLoginPage() {
             </button>
           </form>
           
-          {/* Debug Info - Only show after mount */}
+          {/* Debug Info - Only show in development */}
           {process.env.NODE_ENV === 'development' && mounted && (
             <div className="mt-6 pt-6 border-t border-secondary-200">
               <p className="text-xs text-secondary-500 text-center">

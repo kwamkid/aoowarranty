@@ -60,7 +60,6 @@ export async function DELETE(request: NextRequest) {
     
     // Get tenant from session or headers
     let tenant = ''
-    let loginPath = '/admin/login'
     
     if (sessionCookie) {
       try {
@@ -76,22 +75,12 @@ export async function DELETE(request: NextRequest) {
       tenant = headersList.get('x-tenant') || ''
     }
     
-    // Determine if production or development
+    // Check if production
     const host = headersList.get('host') || ''
-    const isProduction = !host.includes('localhost')
+    const isProduction = !host.includes('localhost') && !host.includes('127.0.0.1')
     
     // Build logout redirect URL
-    let redirectUrl = '/'
-    
-    if (tenant) {
-      if (isProduction) {
-        // Production: redirect to subdomain admin login
-        redirectUrl = '/admin/login'
-      } else {
-        // Development: redirect with tenant path
-        redirectUrl = `/${tenant}/admin/login`
-      }
-    }
+    let redirectUrl = '/admin/login'
     
     // Clear the session cookie
     const cookieOptions: any = {
@@ -103,9 +92,8 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Set domain for production to clear across subdomains
-    if (isProduction) {
-      const baseDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
-      cookieOptions.domain = `.${baseDomain}`
+    if (isProduction && process.env.NEXT_PUBLIC_APP_DOMAIN) {
+      cookieOptions.domain = `.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
     }
     
     // Clear cookie
