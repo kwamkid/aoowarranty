@@ -7,8 +7,34 @@ import {
   FileText, 
   TrendingUp,
   Calendar,
-  AlertTriangle
+  AlertTriangle,
+  Link as LinkIcon,
+  Copy,
+  ExternalLink
 } from 'lucide-react'
+import CopyLinkCard from '@/components/admin/CopyLinkCard'
+import Link from 'next/link'
+import { formatDate } from '@/lib/utils'
+
+// Type definition for warranty data
+interface WarrantyData {
+  id: string
+  customerInfo?: {
+    name?: string
+    lineDisplayName?: string
+    phone?: string
+    email?: string
+  }
+  productInfo?: {
+    brandName?: string
+    productName?: string
+    model?: string
+  }
+  registrationDate?: any
+  status?: 'active' | 'expired' | 'claimed'
+  purchaseDate?: string
+  warrantyExpiry?: string
+}
 
 async function getDashboardStats(companyId: string) {
   // Get stats from database
@@ -34,21 +60,47 @@ async function getDashboardStats(companyId: string) {
     return daysUntilExpiry > 0 && daysUntilExpiry <= 30
   }).length
   
+  // Get recent registrations (latest 5)
+  const recentWarranties = warrantiesSnapshot.docs
+    .sort((a, b) => {
+      const dateA = a.data().registrationDate?.toDate() || new Date(0)
+      const dateB = b.data().registrationDate?.toDate() || new Date(0)
+      return dateB.getTime() - dateA.getTime()
+    })
+    .slice(0, 5)
+    .map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        customerInfo: data.customerInfo || {},
+        productInfo: data.productInfo || {},
+        registrationDate: data.registrationDate,
+        status: data.status || 'active',
+        ...data
+      }
+    })
+  
   return {
     totalBrands: brandsSnapshot.data().count,
     totalProducts: productsSnapshot.data().count,
     totalWarranties: warrantiesSnapshot.size,
     warrantiesThisMonth,
-    nearExpiry
+    nearExpiry,
+    recentWarranties
   }
 }
 
 export default async function AdminDashboard() {
-  const { company } = await getTenantContext()
+  const { company, tenant } = await getTenantContext()
   
-  if (!company) return null
+  if (!company || !tenant) return null
   
   const stats = await getDashboardStats(company.id)
+  
+  // Build proper links with tenant
+  const buildAdminLink = (path: string) => {
+    return `/${tenant}/admin${path}`
+  }
   
   const statCards = [
     {
@@ -72,8 +124,8 @@ export default async function AdminDashboard() {
     {
       title: 'ลูกค้าใหม่เดือนนี้',
       value: stats.warrantiesThisMonth.toString(),
-      change: '+100%',
-      changeType: 'increase' as const,
+      change: stats.warrantiesThisMonth > 0 ? '+100%' : '0%',
+      changeType: stats.warrantiesThisMonth > 0 ? 'increase' as const : 'neutral' as const,
       changeLabel: 'จากเดือนที่แล้ว',
       icon: Users,
       color: 'bg-purple-500'
@@ -82,7 +134,7 @@ export default async function AdminDashboard() {
       title: 'ประกันใกล้หมดอายุ',
       value: stats.nearExpiry.toString(),
       change: '30 วัน',
-      changeType: 'warning' as const,
+      changeType: stats.nearExpiry > 0 ? 'warning' as const : 'neutral' as const,
       changeLabel: 'ภายใน',
       icon: AlertTriangle,
       color: 'bg-orange-500'
@@ -128,22 +180,37 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
+      {/* Customer Registration Link */}
+      <CopyLinkCard companySlug={company.slug} />
+
       {/* Quick Actions */}
       <div className="card">
         <h2 className="text-lg font-semibold text-secondary-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <a href="/admin/brands/new" className="btn-outline text-center">
+          <Link 
+            href={buildAdminLink('/brands/new')} 
+            className="btn-outline text-center"
+          >
             เพิ่มแบรนด์ใหม่
-          </a>
-          <a href="/admin/products/new" className="btn-outline text-center">
+          </Link>
+          <Link 
+            href={buildAdminLink('/products/new')} 
+            className="btn-outline text-center"
+          >
             เพิ่มสินค้าใหม่
-          </a>
-          <a href="/admin/registrations" className="btn-outline text-center">
+          </Link>
+          <Link 
+            href={buildAdminLink('/registrations')} 
+            className="btn-outline text-center"
+          >
             ดูการลงทะเบียน
-          </a>
-          <a href="/admin/reports" className="btn-outline text-center">
+          </Link>
+          <Link 
+            href={buildAdminLink('/reports')} 
+            className="btn-outline text-center"
+          >
             Export รายงาน
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -153,12 +220,15 @@ export default async function AdminDashboard() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-secondary-900">การลงทะเบียนล่าสุด</h3>
-            <a href="/admin/registrations" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+            <Link 
+              href={buildAdminLink('/registrations')} 
+              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+            >
               ดูทั้งหมด
-            </a>
+            </Link>
           </div>
           
-          {stats.totalWarranties === 0 ? (
+          {stats.recentWarranties.length === 0 ? (
             <div className="text-center py-8 text-secondary-500">
               <FileText className="w-12 h-12 mx-auto mb-3 text-secondary-300" />
               <p>ยังไม่มีการลงทะเบียน</p>
@@ -166,7 +236,35 @@ export default async function AdminDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-secondary-500">จะแสดงรายการล่าสุดที่นี่</p>
+              {stats.recentWarranties.map((warranty: WarrantyData) => (
+                <div key={warranty.id} className="border-b border-secondary-100 pb-3 last:border-0">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-secondary-900">
+                        {warranty.customerInfo?.name || 'ไม่ระบุชื่อ'}
+                      </p>
+                      <p className="text-sm text-secondary-600">
+                        {warranty.productInfo?.brandName} {warranty.productInfo?.productName}
+                      </p>
+                      <p className="text-xs text-secondary-500 mt-1">
+                        {formatDate(warranty.registrationDate, 'dd/MM/yyyy HH:mm')}
+                      </p>
+                    </div>
+                    <div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        warranty.status === 'active' 
+                          ? 'bg-green-100 text-green-800'
+                          : warranty.status === 'expired'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {warranty.status === 'active' ? 'ใช้งานได้' : 
+                         warranty.status === 'expired' ? 'หมดอายุ' : 'เคลม'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

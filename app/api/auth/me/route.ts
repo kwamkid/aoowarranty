@@ -1,114 +1,72 @@
-// app/api/auth/me/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 
+// GET: Check current session
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get('auth-session')
+    const authSession = cookieStore.get('auth-session')
     
-    if (!sessionCookie) {
-      return NextResponse.json({
-        success: false,
-        authenticated: false,
-        message: 'ไม่พบ session'
-      }, { status: 401 })
+    if (!authSession) {
+      return NextResponse.json({ 
+        success: true,
+        user: null,
+        authenticated: false 
+      })
     }
     
     try {
-      const sessionData = JSON.parse(sessionCookie.value)
+      const sessionData = JSON.parse(authSession.value)
       
+      // Return user info
       return NextResponse.json({
         success: true,
         authenticated: true,
         user: {
           id: sessionData.userId,
-          email: sessionData.email,
           name: sessionData.name,
-          role: sessionData.role
-        },
-        company: {
-          id: sessionData.companyId,
-          tenant: sessionData.tenant
+          email: sessionData.email,
+          role: sessionData.role,
+          companyName: sessionData.companyName,
+          companySlug: sessionData.companySlug || sessionData.tenant,
+          companyId: sessionData.companyId
         }
       })
     } catch (error) {
-      return NextResponse.json({
-        success: false,
-        authenticated: false,
-        message: 'Session ไม่ถูกต้อง'
-      }, { status: 401 })
+      // Invalid session data
+      return NextResponse.json({ 
+        success: true,
+        user: null,
+        authenticated: false 
+      })
     }
-    
-  } catch (error: any) {
-    console.error('Auth check error:', error)
-    
-    return NextResponse.json({
+  } catch (error) {
+    console.error('Session check error:', error)
+    return NextResponse.json({ 
       success: false,
-      authenticated: false,
-      message: 'เกิดข้อผิดพลาด'
+      message: 'เกิดข้อผิดพลาดในการตรวจสอบ session' 
     }, { status: 500 })
   }
 }
 
-// Logout endpoint
+// DELETE: Logout
 export async function DELETE(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get('auth-session')
-    const headersList = await headers()
     
-    // Get tenant from session or headers
-    let tenant = ''
-    
-    if (sessionCookie) {
-      try {
-        const sessionData = JSON.parse(sessionCookie.value)
-        tenant = sessionData.tenant || ''
-      } catch (error) {
-        console.error('Error parsing session:', error)
-      }
-    }
-    
-    // If no tenant in session, try headers
-    if (!tenant) {
-      tenant = headersList.get('x-tenant') || ''
-    }
-    
-    // Check if production
-    const host = headersList.get('host') || ''
-    const isProduction = !host.includes('localhost') && !host.includes('127.0.0.1')
-    
-    // Build logout redirect URL
-    let redirectUrl = '/admin/login'
-    
-    // Clear the session cookie
-    const cookieOptions: any = {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax' as const,
-      maxAge: 0, // Expire immediately
-      path: '/'
-    }
-    
-    // Set domain for production to clear across subdomains
-    if (isProduction && process.env.NEXT_PUBLIC_APP_DOMAIN) {
-      cookieOptions.domain = `.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
-    }
-    
-    // Clear cookie
-    cookieStore.set('auth-session', '', cookieOptions)
+    // Clear auth session
+    cookieStore.delete('auth-session')
+    cookieStore.delete('tenant')
     
     return NextResponse.json({
       success: true,
-      message: 'ออกจากระบบสำเร็จ',
-      redirectUrl
+      message: 'ออกจากระบบเรียบร้อยแล้ว'
     })
   } catch (error) {
     console.error('Logout error:', error)
-    return NextResponse.json({
+    return NextResponse.json({ 
       success: false,
-      message: 'เกิดข้อผิดพลาด'
+      message: 'เกิดข้อผิดพลาดในการออกจากระบบ' 
     }, { status: 500 })
   }
 }

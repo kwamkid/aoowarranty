@@ -153,10 +153,12 @@ export async function POST(request: NextRequest) {
       lastLogin: new Date()
     })
     
-    // Create session data
+    // Create session data with complete info
     const sessionData = {
       userId: userDoc.id,
       companyId,
+      companySlug: companyData.slug,
+      companyName: companyData.name,
       email: userData.email,
       name: userData.name,
       role: userData.role,

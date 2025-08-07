@@ -26,9 +26,35 @@ export async function POST(request: NextRequest) {
     const userData = userDoc.data()
     
     // 2. Verify password
-    const isValidPassword = verifyPassword(password, userData.password)
+    let passwordMatch = false
     
-    if (!isValidPassword) {
+    if (userData.passwordHash) {
+      // User has hashed password
+      passwordMatch = verifyPassword(password, userData.passwordHash)
+      console.log('Checking hashed password')
+    } else if (userData.password) {
+      // Old user with plain text password
+      passwordMatch = userData.password === password
+      console.log('Checking plain text password (legacy)')
+      
+      // Auto-migrate to hashed password
+      if (passwordMatch) {
+        try {
+          const { hashPassword } = await import('@/lib/crypto-utils')
+          await adminDb.collection('users').doc(userDoc.id).update({
+            passwordHash: hashPassword(password),
+            password: null // Remove plain text password
+          })
+          console.log('Auto-migrated password to hash')
+        } catch (error) {
+          console.error('Error migrating password:', error)
+        }
+      }
+    } else {
+      console.log('User has no password set')
+    }
+    
+    if (!passwordMatch) {
       return NextResponse.json({ 
         success: false, 
         message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' 
@@ -57,7 +83,8 @@ export async function POST(request: NextRequest) {
       role: userData.role,
       companyId: userData.companyId,
       companySlug: companyData.slug,
-      companyName: companyData.name
+      companyName: companyData.name,
+      tenant: companyData.slug  // Add tenant for compatibility
     }
     
     // 5. Generate session token

@@ -94,14 +94,6 @@ export default function AdminLoginPage() {
         return
       }
       
-      // Debug log
-      console.log('Login Debug:', {
-        tenant,
-        hostname: window.location.hostname,
-        pathname,
-        isProduction: !window.location.hostname.includes('localhost')
-      })
-      
       // Call API with tenant information
       const response = await fetch('/api/auth/admin-login', {
         method: 'POST',
@@ -115,8 +107,18 @@ export default function AdminLoginPage() {
       const result = await response.json()
       
       if (result.success) {
-        // Always use relative path to stay on same domain
-        router.push('/admin')
+        // Build correct redirect URL based on environment
+        const hostname = window.location.hostname
+        const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
+        
+        if (isProduction) {
+          // Production - stay on same subdomain
+          router.push('/admin')
+        } else {
+          // Development - include tenant in path
+          router.push(`/${tenant}/admin`)
+        }
+        
         router.refresh()
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')

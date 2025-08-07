@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -18,8 +18,21 @@ import {
   X,
   LogIn,
   Loader2,
-  Gift
+  Gift,
+  ChevronDown,
+  User,
+  LogOut,
+  LayoutDashboard
 } from 'lucide-react'
+
+interface UserSession {
+  id: string
+  name: string
+  email: string
+  role: string
+  companyName: string
+  companySlug: string
+}
 
 export default function LandingPage() {
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -27,7 +40,34 @@ export default function LandingPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [userSession, setUserSession] = useState<UserSession | null>(null)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const router = useRouter()
+
+  // Check for existing session on mount
+  useEffect(() => {
+    checkSession()
+  }, [])
+
+  const checkSession = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.user) {
+          setUserSession(data.user)
+        }
+      }
+    } catch (error) {
+      console.error('Session check error:', error)
+    } finally {
+      setCheckingSession(false)
+    }
+  }
 
   const features = [
     {
@@ -101,13 +141,24 @@ export default function LandingPage() {
       const result = await response.json()
 
       if (result.success) {
+        // Update session state
+        setUserSession({
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          role: result.user.role,
+          companyName: result.company.name,
+          companySlug: result.company.slug
+        })
+        
         // Close modal
         setShowLoginModal(false)
         
-        // Show success message (optional)
-        console.log('Login successful:', result.user.name)
+        // Clear form
+        setEmail('')
+        setPassword('')
         
-        // Redirect to company admin panel
+        // Redirect to admin dashboard immediately
         window.location.href = result.redirectUrl
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
@@ -117,6 +168,51 @@ export default function LandingPage() {
       setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        setUserSession(null)
+        setShowUserMenu(false)
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
+
+  // Go to admin dashboard
+  const goToAdmin = () => {
+    if (!userSession) return
+    
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1'
+    
+    if (isDevelopment) {
+      window.location.href = `http://localhost:3000/${userSession.companySlug}/admin`
+    } else {
+      const domain = window.location.hostname.replace('www.', '')
+      window.location.href = `https://${userSession.companySlug}.${domain}/admin`
+    }
+  }
+
+  // Build company customer URL
+  const buildCompanyUrl = (companySlug: string) => {
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1'
+    
+    if (isDevelopment) {
+      return `http://localhost:3000/${companySlug}`
+    } else {
+      const domain = window.location.hostname.replace('www.', '')
+      return `https://${companySlug}.${domain}`
     }
   }
 
@@ -144,16 +240,94 @@ export default function LandingPage() {
               <a href="#testimonials" className="text-secondary-600 hover:text-secondary-900">
                 รีวิว
               </a>
-              <button 
-                onClick={() => setShowLoginModal(true)}
-                className="btn-outline flex items-center"
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                เข้าสู่ระบบ
-              </button>
-              <Link href="/register" className="btn-primary">
-                สมัครใช้งาน
-              </Link>
+              
+              {/* User Session UI */}
+              {checkingSession ? (
+                <div className="flex items-center space-x-2 text-secondary-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">กำลังตรวจสอบ...</span>
+                </div>
+              ) : userSession ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    onBlur={() => setTimeout(() => setShowUserMenu(false), 200)}
+                    className="flex items-center space-x-3 px-4 py-2 rounded-lg bg-secondary-50 hover:bg-secondary-100 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center">
+                      <span className="text-white font-medium text-sm">
+                        {userSession.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-secondary-900">
+                        {userSession.name}
+                      </p>
+                      <p className="text-xs text-secondary-500">
+                        {userSession.companyName}
+                      </p>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-secondary-400" />
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white border border-secondary-200 rounded-lg shadow-lg z-50">
+                      <div className="p-3 border-b border-secondary-100">
+                        <p className="text-xs text-secondary-500">บัญชีผู้ใช้</p>
+                        <p className="text-sm font-medium text-secondary-900">
+                          {userSession.email}
+                        </p>
+                      </div>
+                      
+                      <div className="py-1">
+                        <button
+                          onClick={goToAdmin}
+                          className="w-full flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                        >
+                          <LayoutDashboard className="w-4 h-4 mr-3" />
+                          ไปที่ Admin Dashboard
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            // Go to company website
+                            const url = buildCompanyUrl(userSession.companySlug)
+                            window.location.href = url
+                          }}
+                          className="w-full flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                        >
+                          <Globe className="w-4 h-4 mr-3" />
+                          ไปที่เว็บไซต์ลูกค้า
+                        </button>
+                        
+                        <hr className="my-1 border-secondary-100" />
+                        
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4 mr-3" />
+                          ออกจากระบบ
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => setShowLoginModal(true)}
+                    className="btn-outline flex items-center"
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    เข้าสู่ระบบ
+                  </button>
+                  <Link href="/register" className="btn-primary">
+                    สมัครใช้งาน
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -183,17 +357,29 @@ export default function LandingPage() {
               
               {/* CTA Buttons */}
               <div className="flex flex-wrap gap-4">
-                <Link href="/register" className="btn-primary inline-flex items-center">
-                  เริ่มใช้งานฟรี
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Link>
-                <button 
-                  onClick={() => setShowLoginModal(true)}
-                  className="btn-outline flex items-center"
-                >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  เข้าสู่ระบบ
-                </button>
+                {userSession ? (
+                  <button
+                    onClick={goToAdmin}
+                    className="btn-primary inline-flex items-center"
+                  >
+                    <LayoutDashboard className="w-5 h-5 mr-2" />
+                    ไปที่ Admin Dashboard
+                  </button>
+                ) : (
+                  <>
+                    <Link href="/register" className="btn-primary inline-flex items-center">
+                      เริ่มใช้งานฟรี
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Link>
+                    <button 
+                      onClick={() => setShowLoginModal(true)}
+                      className="btn-outline flex items-center"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      เข้าสู่ระบบ
+                    </button>
+                  </>
+                )}
               </div>
               
               <div className="flex items-center space-x-6 mt-8 text-sm text-secondary-600">
@@ -218,7 +404,9 @@ export default function LandingPage() {
                   <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 text-white" />
                   </div>
-                  <span className="font-semibold text-secondary-900">ABC Mobile Shop</span>
+                  <span className="font-semibold text-secondary-900">
+                    {userSession ? userSession.companyName : 'ABC Mobile Shop'}
+                  </span>
                 </div>
                 
                 <h3 className="text-xl font-bold text-secondary-900 mb-4">
