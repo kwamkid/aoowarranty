@@ -97,9 +97,19 @@ export default async function AdminDashboard() {
   
   const stats = await getDashboardStats(company.id)
   
-  // Build proper links with tenant
+  // Build proper links based on environment
+  // In production, we're already on subdomain so use direct paths
+  // In development, we need tenant prefix
   const buildAdminLink = (path: string) => {
-    return `/${tenant}/admin${path}`
+    // Since this is a server component, we can't use window.location
+    // Instead, use environment variable to determine production
+    const isProduction = process.env.NODE_ENV === 'production'
+    
+    if (isProduction) {
+      return `/admin${path}`
+    } else {
+      return `/${tenant}/admin${path}`
+    }
   }
   
   const statCards = [

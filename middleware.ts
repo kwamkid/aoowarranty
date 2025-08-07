@@ -38,16 +38,13 @@ export function middleware(request: NextRequest) {
     // abc-shop.aoowarranty.com → subdomain = abc-shop
     const parts = hostname.split('.')
     
-    // Simple check: if we have 3 parts and middle is 'aoowarranty'
-    if (parts.length === 3 && parts[1] === 'aoowarranty' && parts[2] === 'com') {
-      if (parts[0] !== 'www') {
-        subdomain = parts[0]
+    // Check for subdomain pattern
+    if (parts.length >= 3) {
+      // Pattern: abc-shop.aoowarranty.com
+      const potentialSubdomain = parts[0]
+      if (potentialSubdomain !== 'www' && potentialSubdomain !== 'aoowarranty') {
+        subdomain = potentialSubdomain
       }
-    }
-    // Also handle if accessed without www
-    else if (parts.length === 2 && parts[0] !== 'aoowarranty' && parts[1] === 'com') {
-      // This might be a case like abc-shop.com (if using custom domain)
-      subdomain = parts[0]
     }
   }
 
@@ -57,20 +54,18 @@ export function middleware(request: NextRequest) {
   requestHeaders.set('x-tenant-host', isLocalhost ? 'localhost' : 'production')
   requestHeaders.set('x-original-hostname', hostname)
   
+  // IMPORTANT: Don't rewrite if already processed
+  // This prevents double rewriting like /tenant/admin -> /tenant/tenant/admin
+  const isAlreadyRewritten = url.pathname.startsWith('/tenant/')
+  
+  if (isProduction) {
+    console.log('Subdomain detected:', subdomain)
+    console.log('Is already rewritten:', isAlreadyRewritten)
+    console.log('Current pathname:', url.pathname)
+  }
+  
   // Special handling for tenant routes
-  if (subdomain) {
-    // IMPORTANT: Check if path is already rewritten to avoid double rewriting
-    if (url.pathname.startsWith('/tenant/')) {
-      if (isProduction) {
-        console.log('Path already starts with /tenant/, skipping rewrite')
-      }
-      return NextResponse.rewrite(url, {
-        request: {
-          headers: requestHeaders,
-        }
-      })
-    }
-    
+  if (subdomain && !isAlreadyRewritten) {
     // Rewrite to tenant-specific paths
     if (url.pathname === '/') {
       url.pathname = '/tenant'
@@ -81,15 +76,13 @@ export function middleware(request: NextRequest) {
     } else if (url.pathname.startsWith('/my-warranties')) {
       url.pathname = `/tenant/my-warranties`
     }
-    // Don't rewrite API routes - they handle tenant context themselves
+    // For any other paths under tenant (but not API routes)
     else if (!url.pathname.startsWith('/api/')) {
-      // For any other paths under tenant, prefix with /tenant
       url.pathname = `/tenant${url.pathname}`
     }
     
     if (isProduction) {
-      console.log('Detected subdomain:', subdomain)
-      console.log('Rewritten path:', url.pathname)
+      console.log('Rewritten to:', url.pathname)
       console.log('=========================')
     }
   }
