@@ -1,7 +1,7 @@
 // app/api/auth/line/callback/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { exchangeCodeForToken, getLineProfile } from '@/lib/line-auth'
+import { exchangeCodeForToken, getLineProfile, buildRedirectUrl, getCookieDomain } from '@/lib/line-auth'
 import { adminDb } from '@/lib/firebase-admin'
 import { generateId } from '@/lib/utils'
 
@@ -20,22 +20,29 @@ export async function GET(request: NextRequest) {
       tenant = stateParts[0] || ''
     }
     
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    // Build base URL for redirects
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+    const baseUrl = isDevelopment 
+      ? 'http://localhost:3000' 
+      : `https://${domain}`
     
     if (!tenant) {
       console.error('No tenant in callback state')
-      return NextResponse.redirect(new URL(appUrl, request.url))
+      return NextResponse.redirect(new URL(baseUrl, request.url))
     }
     
     // Handle LINE errors
     if (error) {
       console.error('LINE Login error:', error, errorDescription)
-      return NextResponse.redirect(new URL(`${appUrl}/${tenant}?error=line_login_failed&desc=${errorDescription}`, request.url))
+      const errorUrl = buildRedirectUrl(tenant, `?error=line_login_failed&desc=${encodeURIComponent(errorDescription || '')}`)
+      return NextResponse.redirect(new URL(errorUrl, request.url))
     }
     
     if (!code || !state) {
       console.error('Missing code or state')
-      return NextResponse.redirect(new URL(`${appUrl}/${tenant}?error=invalid_request`, request.url))
+      const errorUrl = buildRedirectUrl(tenant, '?error=invalid_request')
+      return NextResponse.redirect(new URL(errorUrl, request.url))
     }
     
     // Get company info
@@ -47,17 +54,15 @@ export async function GET(request: NextRequest) {
     
     if (companiesSnapshot.empty) {
       console.error('Company not found:', tenant)
-      return NextResponse.redirect(new URL(appUrl, request.url))
+      return NextResponse.redirect(new URL(baseUrl, request.url))
     }
     
     const company = companiesSnapshot.docs[0]
     const companyId = company.id
     
     // Exchange code for token
-    const redirectUri = `${appUrl}/api/auth/line/callback`
-    console.log('Exchanging code for token with redirect URI:', redirectUri)
-    
-    const tokenData = await exchangeCodeForToken(code, redirectUri)
+    console.log('Exchanging code for token...')
+    const tokenData = await exchangeCodeForToken(code)
     console.log('Token exchange successful')
     
     // Get user profile
@@ -115,19 +120,22 @@ export async function GET(request: NextRequest) {
       expiresIn: tokenData.expires_in
     }
     
-    // Set session cookie
+    // Set session cookie with proper domain
     const cookieStore = await cookies()
+    const cookieDomain = getCookieDomain()
+    
     cookieStore.set('line-session', JSON.stringify(sessionData), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: !isDevelopment, // Only secure in production
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30 // 30 days
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      ...(cookieDomain && { domain: cookieDomain }) // Add domain only if defined
     })
     
-    console.log('Session created, redirecting to:', `${appUrl}/${tenant}`)
+    console.log('Session created, redirecting to:', buildRedirectUrl(tenant))
     
     // Redirect to tenant home
-    return NextResponse.redirect(new URL(`${appUrl}/${tenant}`, request.url))
+    return NextResponse.redirect(new URL(buildRedirectUrl(tenant), request.url))
     
   } catch (error: any) {
     console.error('LINE callback error:', error)
@@ -141,9 +149,16 @@ export async function GET(request: NextRequest) {
       tenant = stateParts[0] || ''
     }
     
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    return NextResponse.redirect(
-      new URL(`${appUrl}/${tenant}?error=authentication_failed`, request.url)
-    )
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+    const baseUrl = isDevelopment 
+      ? 'http://localhost:3000' 
+      : `https://${domain}`
+    
+    const errorUrl = tenant 
+      ? buildRedirectUrl(tenant, '?error=authentication_failed')
+      : baseUrl
+      
+    return NextResponse.redirect(new URL(errorUrl, request.url))
   }
 }

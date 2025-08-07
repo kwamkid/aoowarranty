@@ -1,6 +1,7 @@
 // app/api/auth/line/me/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies, headers } from 'next/headers'
+import { buildRedirectUrl } from '@/lib/line-auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,24 +57,46 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const cookieStore = await cookies()
+    const sessionCookie = cookieStore.get('line-session')
+    
+    // Get tenant from session for redirect
+    let tenant = ''
+    if (sessionCookie) {
+      try {
+        const sessionData = JSON.parse(sessionCookie.value)
+        tenant = sessionData.tenant || ''
+      } catch (error) {
+        console.error('Error parsing session:', error)
+      }
+    }
+    
+    // If no tenant in session, try headers
+    if (!tenant) {
+      const headersList = await headers()
+      tenant = headersList.get('x-tenant') || ''
+    }
+    
+    // Delete the session cookie
     cookieStore.delete('line-session')
     
-    // Get tenant for redirect
-    const headersList = await headers()
-    const tenant = headersList.get('x-tenant') || ''
+    // For production with subdomain, also try to delete with domain
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    if (!isDevelopment) {
+      // Try to delete cookie with domain setting
+      const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+      cookieStore.set('line-session', '', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 0,
+        domain: `.${domain}`
+      })
+    }
     
-    // Redirect to tenant home
-    const isLocalhost = headersList.get('x-tenant-host') === 'localhost'
+    // Build redirect URL
     let redirectUrl = '/'
-    
     if (tenant) {
-      if (isLocalhost) {
-        redirectUrl = `http://localhost:3000/${tenant}`
-      } else {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://warrantyhub.com'
-        const domain = baseUrl.replace(/https?:\/\//, '')
-        redirectUrl = `https://${tenant}.${domain}`
-      }
+      redirectUrl = buildRedirectUrl(tenant)
     }
     
     return NextResponse.json({
@@ -82,6 +105,7 @@ export async function DELETE(request: NextRequest) {
       redirectUrl
     })
   } catch (error) {
+    console.error('Logout error:', error)
     return NextResponse.json({
       success: false,
       message: 'เกิดข้อผิดพลาด'

@@ -7,10 +7,22 @@ export const LINE_LOGIN_CONFIG = {
   channelSecret: process.env.LINE_CHANNEL_SECRET || '',
 }
 
+// Get production callback URL
+export function getCallbackUrl(): string {
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  
+  if (isDevelopment) {
+    return 'http://localhost:3000/api/auth/line/callback'
+  }
+  
+  // Use domain from environment variable
+  const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+  return `https://${domain}/api/auth/line/callback`
+}
+
 // Generate LINE Login URL
 export function getLineLoginUrl(state: string, tenant: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const redirectUri = `${baseUrl}/api/auth/line/callback`
+  const redirectUri = getCallbackUrl()
   
   const params = new URLSearchParams({
     response_type: 'code',
@@ -69,8 +81,11 @@ export async function getLineProfile(accessToken: string) {
 }
 
 // Exchange code for token
-export async function exchangeCodeForToken(code: string, redirectUri: string) {
+export async function exchangeCodeForToken(code: string, redirectUri?: string) {
   try {
+    // Use the same callback URL that was used for authorization
+    const callbackUrl = redirectUri || getCallbackUrl()
+    
     const response = await fetch('https://api.line.me/oauth2/v2.1/token', {
       method: 'POST',
       headers: {
@@ -79,7 +94,7 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: redirectUri,
+        redirect_uri: callbackUrl,
         client_id: LINE_LOGIN_CONFIG.channelId,
         client_secret: LINE_LOGIN_CONFIG.channelSecret,
       }),
@@ -106,4 +121,31 @@ export function generateLineState(): string {
 // Helper to check if user is logged in with LINE
 export function isLineAuthenticated(session: any): boolean {
   return !!(session?.lineUserId && session?.accessToken)
+}
+
+// Build redirect URL based on environment
+export function buildRedirectUrl(tenant: string, path: string = ''): string {
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  
+  if (isDevelopment) {
+    return `http://localhost:3000/${tenant}${path}`
+  }
+  
+  // Production uses subdomain with domain from env
+  const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+  return `https://${tenant}.${domain}${path}`
+}
+
+// Get cookie domain based on environment
+export function getCookieDomain(): string | undefined {
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  
+  if (isDevelopment) {
+    // Don't set domain for localhost
+    return undefined
+  }
+  
+  // Use wildcard domain for production
+  const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+  return `.${domain}`
 }

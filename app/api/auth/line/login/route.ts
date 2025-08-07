@@ -18,11 +18,15 @@ export async function GET(request: NextRequest) {
     // Generate state for CSRF protection
     const state = generateLineState()
     
-    // Generate LINE Login URL
+    // Generate LINE Login URL with proper callback
     const loginUrl = getLineLoginUrl(state, tenant)
     
-    console.log('Redirecting to LINE Login:', loginUrl)
+    console.log('=== LINE Login Debug ===')
     console.log('Tenant:', tenant)
+    console.log('State:', state)
+    console.log('Login URL:', loginUrl)
+    console.log('Environment:', process.env.NODE_ENV)
+    console.log('======================')
     
     // Redirect to LINE Login
     return NextResponse.redirect(loginUrl)
@@ -34,9 +38,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const tenant = searchParams.get('tenant') || ''
     
+    const isDevelopment = process.env.NODE_ENV === 'development'
     let errorUrl = '/'
+    
     if (tenant) {
-      errorUrl = `http://localhost:3000/${tenant}?error=line_login_failed`
+      if (isDevelopment) {
+        errorUrl = `http://localhost:3000/${tenant}?error=line_login_failed`
+      } else {
+        const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+        errorUrl = `https://${tenant}.${domain}?error=line_login_failed`
+      }
     }
     
     return NextResponse.redirect(errorUrl)
