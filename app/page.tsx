@@ -105,8 +105,17 @@ export default function LandingPage() {
         return
       }
 
-      // Redirect to company subdomain for actual login
-      const loginUrl = `http://localhost:3000/${findResult.companySlug}/admin/login`
+      // Build correct URL based on environment
+      let loginUrl: string
+      
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // Development
+        loginUrl = `http://localhost:3000/${findResult.companySlug}/admin/login`
+      } else {
+        // Production - use subdomain
+        const domain = window.location.hostname.replace('www.', '')
+        loginUrl = `https://${findResult.companySlug}.${domain}/admin/login`
+      }
       
       // Store credentials temporarily
       sessionStorage.setItem('temp-email', email)
