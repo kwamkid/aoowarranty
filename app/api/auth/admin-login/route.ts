@@ -11,35 +11,58 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email, password } = body
     
-    // Get tenant from headers
+    // Get tenant from multiple sources
     const headersList = await headers()
-    const tenant = headersList.get('x-tenant') || ''
     
-    // DEBUG: Log all headers
-    console.log('=== API Debug ===')
-    console.log('Request URL:', request.url)
-    console.log('x-tenant:', tenant)
-    console.log('x-tenant-host:', headersList.get('x-tenant-host'))
-    console.log('host:', headersList.get('host'))
-    console.log('referer:', headersList.get('referer'))
-    console.log('================')
+    // 1. Try x-tenant header from middleware
+    let tenant = headersList.get('x-tenant') || ''
     
-    // Try to extract tenant from referer if not in x-tenant
-    let actualTenant = tenant
-    if (!actualTenant) {
-      const referer = headersList.get('referer') || ''
-      console.log('No x-tenant, checking referer:', referer)
+    // 2. If not from middleware, try from request header (sent by client)
+    if (!tenant) {
+      tenant = headersList.get('x-tenant') || ''
+    }
+    
+    // 3. Try to extract from host header (for production)
+    if (!tenant) {
+      const host = headersList.get('host') || ''
       
-      // Extract tenant from referer URL like http://localhost:3000/abc-shop/admin/login
-      const match = referer.match(/\/([^\/]+)\/admin\/login/)
-      if (match) {
-        actualTenant = match[1]
-        console.log('Found tenant from referer:', actualTenant)
+      // Check if it's a subdomain
+      if (!host.includes('localhost')) {
+        const parts = host.split('.')
+        if (parts.length >= 2 && parts[0] !== 'www') {
+          tenant = parts[0]
+        }
       }
     }
     
-    if (!actualTenant) {
-      console.log('No tenant found!')
+    // 4. Try from referer as last resort
+    if (!tenant) {
+      const referer = headersList.get('referer') || ''
+      
+      // Production pattern: https://abc-shop.aoowarranty.com/admin/login
+      if (!referer.includes('localhost')) {
+        const url = new URL(referer)
+        const hostParts = url.hostname.split('.')
+        if (hostParts.length >= 2 && hostParts[0] !== 'www') {
+          tenant = hostParts[0]
+        }
+      } else {
+        // Development pattern: http://localhost:3000/abc-shop/admin/login
+        const match = referer.match(/\/([^\/]+)\/admin\/login/)
+        if (match) {
+          tenant = match[1]
+        }
+      }
+    }
+    
+    console.log('=== Login API Debug ===')
+    console.log('Tenant:', tenant)
+    console.log('Email:', email)
+    console.log('Host:', headersList.get('host'))
+    console.log('Referer:', headersList.get('referer'))
+    console.log('=====================')
+    
+    if (!tenant) {
       return NextResponse.json({
         success: false,
         message: 'ไม่พบข้อมูลบริษัท'
@@ -48,13 +71,13 @@ export async function POST(request: NextRequest) {
     
     // Get company by slug
     const companiesSnapshot = await adminDb.collection('companies')
-      .where('slug', '==', actualTenant)
+      .where('slug', '==', tenant)
       .where('isActive', '==', true)
       .limit(1)
       .get()
     
     if (companiesSnapshot.empty) {
-      console.log('Company not found for tenant:', actualTenant)
+      console.log('Company not found for tenant:', tenant)
       return NextResponse.json({
         success: false,
         message: 'ไม่พบข้อมูลบริษัท'
@@ -63,7 +86,8 @@ export async function POST(request: NextRequest) {
     
     const company = companiesSnapshot.docs[0]
     const companyId = company.id
-    console.log('Found company:', company.data().name, 'ID:', companyId)
+    const companyData = company.data()
+    console.log('Found company:', companyData.name, 'ID:', companyId)
     
     // Find user by email and company
     const usersSnapshot = await adminDb.collection('users')
@@ -128,25 +152,37 @@ export async function POST(request: NextRequest) {
       lastLogin: new Date()
     })
     
-    // Create session token (in production, use JWT)
-    const sessionToken = generateId()
+    // Create session data
     const sessionData = {
       userId: userDoc.id,
       companyId,
       email: userData.email,
       name: userData.name,
       role: userData.role,
-      tenant: actualTenant
+      tenant
     }
     
-    // Set cookie
+    // Set cookie with proper domain for production
     const cookieStore = await cookies()
-    cookieStore.set('auth-session', JSON.stringify(sessionData), {
+    const isProduction = !request.url.includes('localhost')
+    
+    // Cookie options
+    const cookieOptions: any = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7 // 7 days
-    })
+      secure: isProduction,
+      sameSite: 'lax' as const,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/'
+    }
+    
+    // Set domain for production subdomain
+    if (isProduction) {
+      // Get base domain from environment or use default
+      const baseDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+      cookieOptions.domain = `.${baseDomain}` // Allow cookie across subdomains
+    }
+    
+    cookieStore.set('auth-session', JSON.stringify(sessionData), cookieOptions)
     
     return NextResponse.json({
       success: true,
@@ -160,8 +196,8 @@ export async function POST(request: NextRequest) {
         },
         company: {
           id: companyId,
-          name: company.data().name,
-          slug: company.data().slug
+          name: companyData.name,
+          slug: companyData.slug
         }
       }
     })

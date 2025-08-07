@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
     
     // Check if it's a tenant path
     if (firstSegment && 
-        !['api', '_next', 'register', 'super-admin', 'test', 'test-firebase'].includes(firstSegment) &&
+        !['api', '_next', 'register', 'super-admin'].includes(firstSegment) &&
         !firstSegment.includes('.')) {
       subdomain = firstSegment
       
@@ -38,15 +38,6 @@ export function middleware(request: NextRequest) {
   requestHeaders.set('x-tenant', subdomain)
   requestHeaders.set('x-tenant-host', isLocalhost ? 'localhost' : 'production')
   
-  // Handle API routes first - always pass headers without rewriting
-  if (url.pathname.startsWith('/api/')) {
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      }
-    })
-  }
-  
   // Special handling for tenant routes
   if (subdomain) {
     // Rewrite to tenant-specific paths
@@ -54,12 +45,20 @@ export function middleware(request: NextRequest) {
       url.pathname = '/tenant'
     } else if (url.pathname.startsWith('/admin')) {
       url.pathname = `/tenant/admin${url.pathname.slice(6)}`
-    } else if (url.pathname === '/register') {
-      url.pathname = '/tenant/register'
+    } else if (url.pathname.startsWith('/register')) {
+      url.pathname = `/tenant/register`
     } else if (url.pathname.startsWith('/my-warranties')) {
-      url.pathname = '/tenant/my-warranties'
-    } else if (url.pathname.startsWith('/warranty/')) {
-      url.pathname = `/tenant${url.pathname}`
+      url.pathname = `/tenant/my-warranties`
+    }
+    
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== Middleware Debug ===')
+      console.log('Original path:', request.nextUrl.pathname)
+      console.log('Rewritten path:', url.pathname)
+      console.log('Subdomain:', subdomain)
+      console.log('Host:', hostname)
+      console.log('=======================')
     }
   }
   
@@ -77,8 +76,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - files with extensions (e.g. .js, .css, .png)
+     * - public files (public directory)
+     * - api routes (they handle their own tenant logic)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|public|api).*)',
   ],
 }

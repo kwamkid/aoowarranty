@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, Shield } from 'lucide-react'
-import { getTenantFromHeaders } from '@/lib/tenant-context'
 
 // Validation schema
 const loginSchema = z.object({
@@ -31,6 +30,46 @@ export default function AdminLoginPage() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema)
   })
+  
+  // Get tenant from URL
+  const getTenant = () => {
+    if (typeof window === 'undefined') return ''
+    
+    const hostname = window.location.hostname
+    const pathname = window.location.pathname
+    
+    // Check if production (subdomain)
+    if (!hostname.includes('localhost')) {
+      // Extract subdomain from hostname like abc-shop.aoowarranty.com
+      const parts = hostname.split('.')
+      if (parts.length >= 2 && parts[0] !== 'www') {
+        return parts[0]
+      }
+    } else {
+      // Development - extract from pathname like /abc-shop/admin/login
+      const pathSegments = pathname.split('/')
+      if (pathSegments[1] && pathSegments[1] !== 'admin') {
+        return pathSegments[1]
+      }
+    }
+    
+    return ''
+  }
+  
+  // Build redirect URL based on environment
+  const buildAdminUrl = (tenant: string) => {
+    if (typeof window === 'undefined') return '/'
+    
+    const hostname = window.location.hostname
+    
+    // Production with subdomain
+    if (!hostname.includes('localhost')) {
+      return '/admin'
+    }
+    
+    // Development with path
+    return `/${tenant}/admin`
+  }
   
   // Check for auto-fill data from sessionStorage
   useEffect(() => {
@@ -60,22 +99,30 @@ export default function AdminLoginPage() {
     setError('')
     
     try {
-      // Get current tenant from URL
-      const pathSegments = window.location.pathname.split('/')
-      const tenant = pathSegments[1] // abc-shop from /abc-shop/admin/login
+      const tenant = getTenant()
       
-      // Call API without tenant in path
+      if (!tenant) {
+        setError('ไม่พบข้อมูลบริษัท')
+        setLoading(false)
+        return
+      }
+      
+      // Call API with tenant information
       const response = await fetch('/api/auth/admin-login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant': tenant // Send tenant in header
+        },
         body: JSON.stringify(data)
       })
       
       const result = await response.json()
       
       if (result.success) {
-        // Redirect to admin dashboard with tenant
-        router.push(`/${tenant}/admin`)
+        // Redirect to admin dashboard with proper URL
+        const adminUrl = buildAdminUrl(tenant)
+        window.location.href = adminUrl // Use window.location for full reload
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       }
@@ -86,12 +133,28 @@ export default function AdminLoginPage() {
     }
   }
   
+  // Build back button URL
+  const getBackUrl = () => {
+    const tenant = getTenant()
+    if (!tenant) return '/'
+    
+    const hostname = window.location.hostname
+    
+    // Production
+    if (!hostname.includes('localhost')) {
+      return '/'
+    }
+    
+    // Development
+    return `/${tenant}`
+  }
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Back Button */}
         <Link 
-          href="/" 
+          href={getBackUrl()} 
           className="inline-flex items-center text-secondary-600 hover:text-secondary-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -169,9 +232,9 @@ export default function AdminLoginPage() {
                 <span className="ml-2 text-sm text-secondary-700">จดจำฉัน</span>
               </label>
               
-              <Link href="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700">
+              <a href="#" className="text-sm text-primary-600 hover:text-primary-700">
                 ลืมรหัสผ่าน?
-              </Link>
+              </a>
             </div>
             
             <button
@@ -193,12 +256,15 @@ export default function AdminLoginPage() {
             </button>
           </form>
           
-          {/* Test Accounts Info */}
-          <div className="mt-8 pt-6 border-t border-secondary-200">
-            <p className="text-xs text-secondary-500 text-center">
-              สำหรับทดสอบ: ใช้ email และ password ที่สร้างไว้ใน test data
-            </p>
-          </div>
+          {/* Debug Info - Remove in production */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-6 pt-6 border-t border-secondary-200">
+              <p className="text-xs text-secondary-500 text-center">
+                Tenant: {getTenant() || 'Not detected'}<br />
+                Environment: {typeof window !== 'undefined' && window.location.hostname}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
