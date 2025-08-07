@@ -123,53 +123,69 @@ export default function LandingPage() {
     }
   ]
 
-  // Handle direct login
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+  // เพิ่มใน handleLogin function ของ app/page.tsx
 
-    try {
-      // Call direct login API
-      const response = await fetch('/api/auth/direct-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // Important for cookies
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setLoading(true)
+  setError('')
+
+  console.log('=== Login Debug ===')
+  console.log('Email:', email)
+  console.log('Environment:', process.env.NODE_ENV)
+  console.log('Current URL:', window.location.href)
+  console.log('==================')
+
+  try {
+    // Call direct login API
+    const response = await fetch('/api/auth/direct-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      credentials: 'include' // Important for cookies
+    })
+
+    console.log('Response status:', response.status)
+    console.log('Response headers:', response.headers)
+
+    const result = await response.json()
+    console.log('Response data:', result)
+
+    if (result.success) {
+      // Update session state
+      setUserSession({
+        id: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+        role: result.user.role,
+        companyName: result.company.name,
+        companySlug: result.company.slug
       })
-
-      const result = await response.json()
-
-      if (result.success) {
-        // Update session state
-        setUserSession({
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          role: result.user.role,
-          companyName: result.company.name,
-          companySlug: result.company.slug
-        })
-        
-        // Close modal
-        setShowLoginModal(false)
-        
-        // Clear form
-        setEmail('')
-        setPassword('')
-        
-        // Redirect to admin dashboard immediately
-        window.location.href = result.redirectUrl
-      } else {
-        setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+      
+      // Close modal
+      setShowLoginModal(false)
+      
+      // Clear form
+      setEmail('')
+      setPassword('')
+      
+      // Redirect to admin dashboard immediately
+      window.location.href = result.redirectUrl
+    } else {
+      setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+      
+      // Show debug info in console
+      if (result.debug) {
+        console.error('Login error debug:', result.debug)
       }
-    } catch (error) {
-      console.error('Login error:', error)
-      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง')
-    } finally {
-      setLoading(false)
     }
+  } catch (error) {
+    console.error('Login error:', error)
+    setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง')
+  } finally {
+    setLoading(false)
   }
+}
 
   // Handle logout
   const handleLogout = async () => {
