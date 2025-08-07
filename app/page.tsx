@@ -83,49 +83,38 @@ export default function LandingPage() {
     }
   ]
 
-  // Handle login
+  // Handle direct login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     try {
-      // First, try to find company by email
-      const findResponse = await fetch('/api/auth/find-company', {
+      // Call direct login API
+      const response = await fetch('/api/auth/direct-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // Important for cookies
       })
 
-      const findResult = await findResponse.json()
+      const result = await response.json()
 
-      if (!findResult.success || !findResult.companySlug) {
-        setError('ไม่พบบัญชีผู้ใช้ในระบบ')
-        setLoading(false)
-        return
-      }
-
-      // Build correct URL based on environment
-      let loginUrl: string
-      
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        // Development
-        loginUrl = `http://localhost:3000/${findResult.companySlug}/admin/login`
+      if (result.success) {
+        // Close modal
+        setShowLoginModal(false)
+        
+        // Show success message (optional)
+        console.log('Login successful:', result.user.name)
+        
+        // Redirect to company admin panel
+        window.location.href = result.redirectUrl
       } else {
-        // Production - use subdomain
-        const domain = window.location.hostname.replace('www.', '')
-        loginUrl = `https://${findResult.companySlug}.${domain}/admin/login`
+        setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       }
-      
-      // Store credentials temporarily
-      sessionStorage.setItem('temp-email', email)
-      sessionStorage.setItem('temp-password', password)
-      
-      // Redirect to company login page
-      window.location.href = loginUrl
-
     } catch (error) {
-      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+      console.error('Login error:', error)
+      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง')
     } finally {
       setLoading(false)
     }
@@ -361,7 +350,7 @@ export default function LandingPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-secondary-900">
-                เข้าสู่ระบบ
+                เข้าสู่ระบบ Admin
               </h3>
               <button
                 onClick={() => {
@@ -395,6 +384,7 @@ export default function LandingPage() {
                   className="w-full px-4 py-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="admin@company.com"
                   required
+                  autoComplete="email"
                 />
               </div>
 
@@ -409,7 +399,22 @@ export default function LandingPage() {
                   className="w-full px-4 py-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="••••••••"
                   required
+                  autoComplete="current-password"
                 />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500" 
+                  />
+                  <span className="ml-2 text-sm text-secondary-700">จดจำฉัน</span>
+                </label>
+                
+                <a href="#" className="text-sm text-primary-600 hover:text-primary-700">
+                  ลืมรหัสผ่าน?
+                </a>
               </div>
 
               <button
@@ -434,9 +439,20 @@ export default function LandingPage() {
             <div className="mt-6 pt-6 border-t border-secondary-200 text-center">
               <p className="text-sm text-secondary-600">
                 ยังไม่มีบัญชี?{' '}
-                <Link href="/register" className="text-primary-600 hover:text-primary-700 font-medium">
+                <Link 
+                  href="/register" 
+                  className="text-primary-600 hover:text-primary-700 font-medium"
+                  onClick={() => setShowLoginModal(false)}
+                >
                   สมัครใช้งานฟรี
                 </Link>
+              </p>
+            </div>
+
+            {/* Additional Info */}
+            <div className="mt-6 text-center">
+              <p className="text-xs text-secondary-500">
+                สำหรับผู้ดูแลระบบเท่านั้น
               </p>
             </div>
           </div>
