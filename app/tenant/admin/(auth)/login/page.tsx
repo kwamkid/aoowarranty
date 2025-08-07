@@ -53,7 +53,7 @@ export default function AdminLoginPage() {
       const hostname = window.location.hostname
       
       // Check if production (subdomain)
-      if (!hostname.includes('localhost')) {
+      if (!hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
         const parts = hostname.split('.')
         if (parts.length >= 2 && parts[0] !== 'www') {
           setTenant(parts[0])
@@ -118,22 +118,21 @@ export default function AdminLoginPage() {
       const result = await response.json()
       
       if (result.success) {
-        // Redirect based on environment
-        if (typeof window !== 'undefined') {
-          const hostname = window.location.hostname
-          
-          if (!hostname.includes('localhost')) {
-            // Production - use subdomain
-            window.location.href = '/admin'
-          } else {
-            // Development - use path
-            window.location.href = `/${tenant}/admin`
-          }
+        // Use router.push instead of window.location for better control
+        const hostname = window.location.hostname
+        
+        if (!hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
+          // Production - stay on subdomain
+          router.push('/admin')
+        } else {
+          // Development - use path with tenant
+          router.push(`/${tenant}/admin`)
         }
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       }
     } catch (error) {
+      console.error('Login error:', error)
       setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
     } finally {
       setLoading(false)
@@ -256,7 +255,8 @@ export default function AdminLoginPage() {
             <div className="mt-6 pt-6 border-t border-secondary-200">
               <p className="text-xs text-secondary-500 text-center">
                 Tenant: {tenant || 'Not detected'}<br />
-                Path: {pathname}
+                Path: {pathname}<br />
+                Host: {typeof window !== 'undefined' ? window.location.hostname : 'SSR'}
               </p>
             </div>
           )}
