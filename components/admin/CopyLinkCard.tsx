@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Link, Copy, ExternalLink, CheckCircle, QrCode, Download } from 'lucide-react'
+import { Link, Copy, ExternalLink, CheckCircle, QrCode, Download, MessageSquare } from 'lucide-react'
 import QRCode from 'qrcode'
 
 interface CopyLinkCardProps {
@@ -92,9 +92,10 @@ export default function CopyLinkCard({ companySlug }: CopyLinkCardProps) {
   
   return (
     <div className="card bg-gradient-to-r from-primary-50 to-accent-50 border-primary-200">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Link Section */}
+        <div>
+          <div className="flex items-center space-x-2 mb-3">
             <Link className="w-5 h-5 text-primary-600" />
             <h2 className="text-lg font-semibold text-primary-900">
               ลิงก์สำหรับลูกค้าลงทะเบียน
@@ -105,7 +106,8 @@ export default function CopyLinkCard({ companySlug }: CopyLinkCardProps) {
             แชร์ลิงก์นี้ให้ลูกค้าเพื่อลงทะเบียนรับประกันสินค้า
           </p>
           
-          <div className="flex items-center space-x-2">
+          {/* Link Copy Section */}
+          <div className="flex items-center space-x-2 mb-4">
             <div className="flex-1 bg-white rounded-lg border border-primary-300 px-4 py-3">
               {mounted ? (
                 <code className="text-sm text-secondary-700 break-all">
@@ -144,41 +146,68 @@ export default function CopyLinkCard({ companySlug }: CopyLinkCardProps) {
               <ExternalLink className="w-5 h-5" />
             </button>
           </div>
-        </div>
-      </div>
-      
-      {/* QR Code Section */}
-      <div className="mt-6 pt-6 border-t border-primary-200">
-        <div className="flex items-center justify-between gap-6">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <QrCode className="w-5 h-5 text-primary-600" />
-              <h3 className="text-sm font-medium text-primary-900">
-                QR Code สำหรับลูกค้าสแกน
-              </h3>
-            </div>
-            <ul className="space-y-1 text-sm text-primary-700">
-              <li>• ลูกค้าสแกนเพื่อเข้าสู่หน้าลงทะเบียนโดยตรง</li>
-              <li>• พิมพ์ติดที่ร้าน หรือใส่ในใบเสร็จ</li>
-              <li>• ดาวน์โหลดเป็นไฟล์ PNG ความละเอียดสูง</li>
+          
+          {/* How to Use */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-primary-900">วิธีใช้งาน:</h3>
+            <ul className="space-y-2 text-sm text-primary-700">
+              <li className="flex items-start">
+                <span className="text-primary-500 mr-2">•</span>
+                <span>ส่งลิงก์ให้ลูกค้าทาง SMS หรือ Email</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-500 mr-2">•</span>
+                <span>พิมพ์ QR Code ติดที่ร้านหรือใส่ในใบเสร็จ</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-500 mr-2">•</span>
+                <div>
+                  <span className="flex items-center">
+                    <MessageSquare className="w-4 h-4 mr-1 text-green-600" />
+                    <strong>ใช้กับ LINE OA Rich Menu</strong>
+                  </span>
+                  <span className="text-xs text-primary-600 mt-1 block">
+                    นำลิงก์นี้ไปใส่ใน Rich Menu ของ LINE Official Account ได้เลย
+                  </span>
+                </div>
+              </li>
             </ul>
           </div>
           
-          {/* QR Code Display - Desktop */}
-          <div className="hidden sm:block">
-            <div className="bg-white rounded-xl shadow-lg border border-primary-200 p-4">
-              {qrLoading ? (
-                <div className="w-36 h-36 flex items-center justify-center">
-                  <div className="animate-pulse">
-                    <QrCode className="w-16 h-16 text-secondary-300" />
-                  </div>
+          {/* Copy Success Message */}
+          {copied && (
+            <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded-lg animate-fade-in">
+              <p className="text-sm text-green-800 font-medium flex items-center">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                คัดลอกลิงก์เรียบร้อยแล้ว!
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* Right Column - QR Code Section */}
+        <div>
+          <div className="flex items-center space-x-2 mb-3">
+            <QrCode className="w-5 h-5 text-primary-600" />
+            <h3 className="text-lg font-semibold text-primary-900">
+              QR Code สำหรับสแกน
+            </h3>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg border border-primary-200 p-6 text-center">
+            {qrLoading ? (
+              <div className="w-48 h-48 mx-auto flex items-center justify-center">
+                <div className="animate-pulse">
+                  <QrCode className="w-20 h-20 text-secondary-300" />
                 </div>
-              ) : qrCodeDataUrl ? (
-                <div className="relative group">
+              </div>
+            ) : qrCodeDataUrl ? (
+              <div className="space-y-4">
+                <div className="relative group inline-block">
                   <img 
                     src={qrCodeDataUrl} 
                     alt="QR Code" 
-                    className="w-36 h-36"
+                    className="w-48 h-48 mx-auto"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <button
@@ -190,44 +219,14 @@ export default function CopyLinkCard({ companySlug }: CopyLinkCardProps) {
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="w-36 h-36 flex items-center justify-center text-secondary-400">
-                  <span className="text-xs">ไม่สามารถสร้าง QR Code</span>
-                </div>
-              )}
-              
-              {/* Company name under QR */}
-              {!qrLoading && qrCodeDataUrl && (
-                <p className="text-center text-xs text-secondary-600 mt-2 font-medium">
-                  {companySlug}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {/* Mobile QR Code */}
-        <div className="sm:hidden mt-6">
-          <div className="bg-white rounded-xl shadow-lg border border-primary-200 p-6 text-center">
-            {qrLoading ? (
-              <div className="w-48 h-48 mx-auto flex items-center justify-center">
-                <div className="animate-pulse">
-                  <QrCode className="w-20 h-20 text-secondary-300" />
-                </div>
-              </div>
-            ) : qrCodeDataUrl ? (
-              <div className="space-y-4">
-                <img 
-                  src={qrCodeDataUrl} 
-                  alt="QR Code" 
-                  className="w-48 h-48 mx-auto rounded-lg"
-                />
+                
                 <p className="text-sm text-secondary-600 font-medium">
-                  {companySlug}
+                  {companySlug}.aoowarranty.com
                 </p>
+                
                 <button
                   onClick={downloadQR}
-                  className="btn-primary mx-auto flex items-center space-x-2"
+                  className="btn-primary mx-auto flex items-center space-x-2 sm:hidden"
                 >
                   <Download className="w-4 h-4" />
                   <span>ดาวน์โหลด QR Code</span>
@@ -241,15 +240,6 @@ export default function CopyLinkCard({ companySlug }: CopyLinkCardProps) {
           </div>
         </div>
       </div>
-      
-      {copied && (
-        <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded-lg animate-fade-in">
-          <p className="text-sm text-green-800 font-medium flex items-center">
-            <CheckCircle className="w-4 h-4 mr-2" />
-            คัดลอกลิงก์เรียบร้อยแล้ว!
-          </p>
-        </div>
-      )}
     </div>
   )
 }
