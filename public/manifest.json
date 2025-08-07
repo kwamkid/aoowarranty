@@ -1,0 +1,16 @@
+{
+  "name": "AooWarranty",
+  "short_name": "AooWarranty",
+  "description": "ระบบลงทะเบียนรับประกันสินค้าออนไลน์",
+  "theme_color": "#dc2626",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
