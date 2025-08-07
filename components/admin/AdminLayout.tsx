@@ -93,9 +93,19 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
 
   const tenant = getTenantPrefix()
 
-  // Build href with tenant prefix
+  // Build href with tenant prefix - handle production vs development
   const buildHref = (path: string) => {
-    return tenant ? `/${tenant}${path}` : path
+    // Check if we're in production (subdomain)
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+    const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
+    
+    if (isProduction) {
+      // Production - we're already on subdomain, use direct path
+      return path
+    } else {
+      // Development - need tenant prefix
+      return tenant ? `/${tenant}${path}` : path
+    }
   }
 
   // Handle navigation with loading
@@ -117,8 +127,17 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
       })
       
       if (response.ok) {
-        // Redirect to login page instead of homepage
-        router.push(`/${tenant}/admin/login`)
+        // Check if we're in production
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+        const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
+        
+        if (isProduction) {
+          // Production - redirect to /admin/login (subdomain)
+          router.push('/admin/login')
+        } else {
+          // Development - include tenant
+          router.push(`/${tenant}/admin/login`)
+        }
       } else {
         console.error('Logout failed')
         setLoggingOut(false)
