@@ -121,7 +121,7 @@ export default function AdminLoginPage() {
         const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
         
         if (isProduction) {
-          // Production - stay on same subdomain
+          // Production - we're already on subdomain, just go to /admin
           router.push('/admin')
         } else {
           // Development - include tenant in path

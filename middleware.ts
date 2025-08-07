@@ -27,9 +27,21 @@ export function middleware(request: NextRequest) {
     }
   } else {
     // Production: extract from actual subdomain
+    // abc-shop.aoowarranty.com → subdomain = abc-shop
     const parts = hostname.split('.')
-    if (parts.length >= 3 && parts[0] !== 'www') {
-      subdomain = parts[0]
+    
+    // Check for subdomain (not www)
+    if (parts.length >= 2) {
+      // For aoowarranty.com: [abc-shop, aoowarranty, com]
+      // For www.aoowarranty.com: [www, aoowarranty, com]
+      const possibleSubdomain = parts[0]
+      
+      // Only treat as subdomain if not 'www' and not the main domain
+      if (possibleSubdomain !== 'www' && 
+          possibleSubdomain !== 'aoowarranty' &&
+          possibleSubdomain !== 'warrantyhub') {
+        subdomain = possibleSubdomain
+      }
     }
   }
 
@@ -52,7 +64,7 @@ export function middleware(request: NextRequest) {
       url.pathname = `/tenant/my-warranties`
     }
     
-    // Debug logging in development
+    // Debug logging
     if (process.env.NODE_ENV === 'development') {
       console.log('=== Middleware Debug ===')
       console.log('Hostname:', hostname)
