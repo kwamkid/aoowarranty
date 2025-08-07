@@ -5,6 +5,14 @@ export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
   const hostname = request.headers.get('host') || ''
   
+  // Debug logging for production
+  const isProduction = process.env.NODE_ENV === 'production'
+  if (isProduction) {
+    console.log('=== Middleware Production ===')
+    console.log('Hostname:', hostname)
+    console.log('Original path:', request.nextUrl.pathname)
+  }
+  
   // Extract subdomain
   let subdomain = ''
   let isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1')
@@ -17,7 +25,7 @@ export function middleware(request: NextRequest) {
     
     // Check if it's a tenant path
     if (firstSegment && 
-        !['api', '_next', 'register', 'super-admin'].includes(firstSegment) &&
+        !['api', '_next', 'register', 'super-admin', 'favicon.ico'].includes(firstSegment) &&
         !firstSegment.includes('.')) {
       subdomain = firstSegment
       
@@ -27,28 +35,19 @@ export function middleware(request: NextRequest) {
     }
   } else {
     // Production: extract from actual subdomain
-    // Special handling for aoowarranty.com (2-part domain)
+    // abc-shop.aoowarranty.com → subdomain = abc-shop
     const parts = hostname.split('.')
     
-    // For aoowarranty.com structure:
-    // - www.aoowarranty.com → no subdomain
-    // - aoowarranty.com → no subdomain  
-    // - abc-shop.aoowarranty.com → subdomain = abc-shop
-    
+    // Simple check: if we have 3 parts and middle is 'aoowarranty'
     if (parts.length === 3 && parts[1] === 'aoowarranty' && parts[2] === 'com') {
-      // Format: [subdomain].aoowarranty.com
       if (parts[0] !== 'www') {
         subdomain = parts[0]
       }
-    } else if (parts.length === 2 && parts[0] === 'aoowarranty' && parts[1] === 'com') {
-      // Format: aoowarranty.com (no subdomain)
-      subdomain = ''
-    } else if (parts.length >= 3) {
-      // Other domains with 3+ parts
-      const possibleSubdomain = parts[0]
-      if (possibleSubdomain !== 'www') {
-        subdomain = possibleSubdomain
-      }
+    }
+    // Also handle if accessed without www
+    else if (parts.length === 2 && parts[0] !== 'aoowarranty' && parts[1] === 'com') {
+      // This might be a case like abc-shop.com (if using custom domain)
+      subdomain = parts[0]
     }
   }
 
@@ -60,6 +59,18 @@ export function middleware(request: NextRequest) {
   
   // Special handling for tenant routes
   if (subdomain) {
+    // IMPORTANT: Check if path is already rewritten to avoid double rewriting
+    if (url.pathname.startsWith('/tenant/')) {
+      if (isProduction) {
+        console.log('Path already starts with /tenant/, skipping rewrite')
+      }
+      return NextResponse.rewrite(url, {
+        request: {
+          headers: requestHeaders,
+        }
+      })
+    }
+    
     // Rewrite to tenant-specific paths
     if (url.pathname === '/') {
       url.pathname = '/tenant'
@@ -70,16 +81,16 @@ export function middleware(request: NextRequest) {
     } else if (url.pathname.startsWith('/my-warranties')) {
       url.pathname = `/tenant/my-warranties`
     }
+    // Don't rewrite API routes - they handle tenant context themselves
+    else if (!url.pathname.startsWith('/api/')) {
+      // For any other paths under tenant, prefix with /tenant
+      url.pathname = `/tenant${url.pathname}`
+    }
     
-    // Debug logging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('=== Middleware Debug ===')
-      console.log('Hostname:', hostname)
-      console.log('Original path:', request.nextUrl.pathname)
+    if (isProduction) {
+      console.log('Detected subdomain:', subdomain)
       console.log('Rewritten path:', url.pathname)
-      console.log('Subdomain:', subdomain)
-      console.log('Is localhost:', isLocalhost)
-      console.log('=======================')
+      console.log('=========================')
     }
   }
   
@@ -97,9 +108,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public files (public directory)
-     * - api routes (they handle their own tenant logic)
+     * - files with extensions (e.g., .css, .js, .png)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|public|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)',
   ],
 }
