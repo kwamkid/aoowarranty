@@ -101,9 +101,21 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         credentials: 'include'
       })
       
-      if (response.ok) {
-        // Use urlHelper for logout redirect
-        router.push(logoutUrl())
+      const result = await response.json()
+      
+      if (response.ok && result.success) {
+        // Use redirect URL from API response
+        if (result.redirectUrl) {
+          // For production, use window.location for full redirect
+          if (result.redirectUrl.startsWith('http')) {
+            window.location.href = result.redirectUrl
+          } else {
+            router.push(result.redirectUrl)
+          }
+        } else {
+          // Fallback
+          router.push('/')
+        }
       } else {
         console.error('Logout failed')
         setLoggingOut(false)
