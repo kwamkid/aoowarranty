@@ -188,13 +188,22 @@ export async function POST(request: NextRequest) {
     // 6. Store session in cookies
     const cookieStore = await cookies()
     
-    // Set auth cookie
-    const cookieOptions = {
+    // Set auth cookie with proper domain for production
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+    
+    const cookieOptions: any = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: !isDevelopment,
       sameSite: 'lax' as const,
       path: '/',
       maxAge: 60 * 60 * 24 * 7 // 7 days
+    }
+    
+    // IMPORTANT: Set domain for production to share cookie across subdomains
+    if (!isDevelopment) {
+      // Use wildcard domain so cookie works on all subdomains
+      cookieOptions.domain = `.${appDomain}` // .aoowarranty.com
     }
     
     console.log('Setting cookies with options:', cookieOptions)
@@ -204,13 +213,14 @@ export async function POST(request: NextRequest) {
       token: sessionToken
     }), cookieOptions)
     
-    // Set tenant cookie
+    // Set tenant cookie with same domain
     cookieStore.set('tenant', companyData.slug, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: !isDevelopment,
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7 // 7 days
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      ...(cookieOptions.domain && { domain: cookieOptions.domain })
     })
     
     // 7. Update last login
@@ -257,19 +267,5 @@ export async function POST(request: NextRequest) {
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       }
     }, { status: 500 })
-  }
-}
-
-// Helper function to build redirect URL
-function getRedirectUrl(companySlug: string): string {
-  // Use NEXT_PUBLIC_APP_DOMAIN to determine environment
-  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
-  const isDevelopment = appDomain.includes('localhost')
-  
-  if (isDevelopment) {
-    return `http://localhost:3000/${companySlug}/admin`
-  } else {
-    // Production - use subdomain pattern
-    return `https://${companySlug}.${appDomain}/admin`
   }
 }

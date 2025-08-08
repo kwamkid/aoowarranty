@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
     const host = headersList.get('host') || ''
     const isProduction = !host.includes('localhost') && !host.includes('127.0.0.1')
     
-    // Cookie options
+   // Cookie options
     const cookieOptions: any = {
       httpOnly: true,
       secure: isProduction,
@@ -243,11 +243,11 @@ export async function POST(request: NextRequest) {
       path: '/'
     }
     
-    // Set domain for production subdomain
+    // Set domain for production subdomain - use wildcard domain
     if (isProduction) {
-      // Don't set domain - let browser handle it automatically
-      // This ensures cookie works for the specific subdomain
-      console.log('Production mode - not setting cookie domain')
+      const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'aoowarranty.com'
+      cookieOptions.domain = `.${domain}` // .aoowarranty.com
+      console.log('Production mode - setting cookie domain:', cookieOptions.domain)
     }
     
     cookieStore.set('auth-session', JSON.stringify(sessionData), cookieOptions)
