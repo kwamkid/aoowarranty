@@ -353,23 +353,23 @@ export default function CompanyRegistrationPage() {
                 {/* Status Messages */}
                 <div className="mt-2 min-h-[24px]">
                   {subdomainStatus === 'checking' && (
-                    <div className="flex items-center space-x-2 text-secondary-600 text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{subdomainMessage}</span>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#6b7280' }} />
+                      <span style={{ color: '#374151' }}>{subdomainMessage}</span>
                     </div>
                   )}
                   
                   {subdomainStatus === 'available' && (
-                    <div className="flex items-center space-x-2 text-green-600 text-sm">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>{subdomainMessage}</span>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <CheckCircle className="w-4 h-4" style={{ color: '#16a34a' }} />
+                      <span style={{ color: '#15803d', fontWeight: 500 }}>{subdomainMessage}</span>
                     </div>
                   )}
                   
                   {(subdomainStatus === 'taken' || subdomainStatus === 'invalid') && (
-                    <div className="flex items-center space-x-2 text-red-600 text-sm">
-                      <X className="w-4 h-4" />
-                      <span>{subdomainMessage}</span>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <X className="w-4 h-4" style={{ color: '#dc2626' }} />
+                      <span style={{ color: '#b91c1c', fontWeight: 500 }}>{subdomainMessage}</span>
                     </div>
                   )}
                 </div>
