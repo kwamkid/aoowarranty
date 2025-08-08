@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, Shield } from 'lucide-react'
+import { adminUrl, customerUrl, debugUrl } from '@/lib/url-helper'
 
 // Validation schema
 const loginSchema = z.object({
@@ -22,6 +23,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState('')
   const [tenant, setTenant] = useState<string>('')
   const [mounted, setMounted] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<any>({})
   const router = useRouter()
   const pathname = usePathname()
   
@@ -41,22 +43,22 @@ export default function AdminLoginPage() {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname
       
-      // Check if production (subdomain)
-      if (!hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
-        const parts = hostname.split('.')
-        if (parts.length >= 2 && parts[0] !== 'www') {
-          setTenant(parts[0])
-          console.log('Tenant from subdomain:', parts[0])
-          return
+      // Import urlHelper for tenant extraction
+      import('@/lib/url-helper').then(({ urlHelper }) => {
+        const extractedTenant = urlHelper.extractTenant()
+        setTenant(extractedTenant)
+        
+        // Debug info
+        const debug = {
+          hostname,
+          pathname,
+          extractedTenant,
+          isProduction: urlHelper.isProduction(),
+          timestamp: new Date().toISOString()
         }
-      }
-      
-      // Development - get from pathname
-      const pathSegments = pathname.split('/')
-      if (pathSegments[1] && pathSegments[1] !== 'admin') {
-        setTenant(pathSegments[1])
-        console.log('Tenant from path:', pathSegments[1])
-      }
+        setDebugInfo(debug)
+        console.log('Login Page Debug:', debug)
+      })
     }
   }, [pathname])
   
@@ -116,49 +118,50 @@ export default function AdminLoginPage() {
       console.log('Login response:', result)
       
       if (result.success) {
-        // Build correct redirect URL based on environment
-        const hostname = window.location.hostname
-        const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
+        // Use urlHelper to get correct admin URL
+        const redirectUrl = adminUrl('', { tenant })
         
-        if (isProduction) {
-          // Production - we're already on subdomain, just go to /admin
-          router.push('/admin')
-        } else {
-          // Development - include tenant in path
-          router.push(`/${tenant}/admin`)
-        }
+        console.log('Login success, redirecting to:', redirectUrl)
         
-        router.refresh()
+        // Add debug before redirect
+        setDebugInfo(prev => ({
+          ...prev,
+          loginSuccess: true,
+          redirectUrl,
+          responseData: result
+        }))
+        
+        // Use replace instead of push to avoid history issues
+        router.replace(redirectUrl)
       } else {
         setError(result.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
         
         // Show debug info if available
         if (result.debug) {
           console.error('Login debug info:', result.debug)
+          setDebugInfo(prev => ({
+            ...prev,
+            loginError: true,
+            errorDebug: result.debug
+          }))
         }
       }
     } catch (error) {
       console.error('Login error:', error)
       setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+      setDebugInfo(prev => ({
+        ...prev,
+        exception: error instanceof Error ? error.message : String(error)
+      }))
     } finally {
       setLoading(false)
     }
   }
   
-  // Build back URL based on environment
+  // Build back URL
   const getBackUrl = () => {
     if (!mounted) return '/'
-    
-    const hostname = window.location.hostname
-    const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
-    
-    if (isProduction) {
-      // Production - relative path
-      return '/'
-    } else {
-      // Development - with tenant
-      return tenant ? `/${tenant}` : '/'
-    }
+    return customerUrl('/', { tenant })
   }
   
   return (
@@ -268,14 +271,15 @@ export default function AdminLoginPage() {
             </button>
           </form>
           
-          {/* Debug Info - Only show in development */}
-          {process.env.NODE_ENV === 'development' && mounted && (
+          {/* Debug Info - Show in all environments for now */}
+          {mounted && (
             <div className="mt-6 pt-6 border-t border-secondary-200">
-              <p className="text-xs text-secondary-500 text-center">
-                Tenant: {tenant || 'Not detected'}<br />
-                Path: {pathname}<br />
-                Host: {typeof window !== 'undefined' ? window.location.hostname : 'SSR'}
-              </p>
+              <details className="text-xs text-secondary-500">
+                <summary className="cursor-pointer text-center mb-2">Debug Info</summary>
+                <pre className="bg-secondary-50 p-2 rounded overflow-auto max-h-40">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </details>
             </div>
           )}
         </div>

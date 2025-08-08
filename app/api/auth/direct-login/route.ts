@@ -221,7 +221,8 @@ export async function POST(request: NextRequest) {
     console.log('Login successful, updating last login')
     
     // 8. Return success with redirect info
-    const redirectUrl = getRedirectUrl(companyData.slug)
+    const { getLoginRedirectUrl } = await import('@/lib/url-helper')
+    const redirectUrl = getLoginRedirectUrl({ tenant: companyData.slug })
     console.log('Login success! Redirecting to:', redirectUrl)
     
     return NextResponse.json({

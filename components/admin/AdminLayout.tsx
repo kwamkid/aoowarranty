@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useLoadingRouter } from '@/hooks/useLoadingRouter'
 import { useLoading } from '@/components/providers/LoadingProvider'
+import { adminUrl, customerUrl, logoutUrl, apiUrl } from '@/lib/url-helper'
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -38,37 +39,37 @@ interface AdminLayoutProps {
 const sidebarItems = [
   {
     title: 'แดชบอร์ด',
-    href: '/admin',
+    href: '',
     icon: LayoutDashboard,
     iconColor: '#3b82f6' // blue-500
   },
   {
     title: 'จัดการแบรนด์',
-    href: '/admin/brands',
+    href: '/brands',
     icon: Building2,
     iconColor: '#a855f7' // purple-500
   },
   {
     title: 'จัดการสินค้า',
-    href: '/admin/products',
+    href: '/products',
     icon: Package,
     iconColor: '#22c55e' // green-500
   },
   {
     title: 'ข้อมูลการลงทะเบียน',
-    href: '/admin/registrations',
+    href: '/registrations',
     icon: FileText,
     iconColor: '#f97316' // orange-500
   },
   {
     title: 'จัดการผู้ใช้',
-    href: '/admin/users',
+    href: '/users',
     icon: Users,
     iconColor: '#ec4899' // pink-500
   },
   {
     title: 'ตั้งค่าระบบ',
-    href: '/admin/settings',
+    href: '/settings',
     icon: Settings,
     iconColor: '#6b7280' // gray-500
   }
@@ -82,32 +83,6 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   const router = useLoadingRouter()
   const { showLoading, hideLoading } = useLoading()
 
-  // Get tenant from URL for navigation
-  const getTenantPrefix = () => {
-    const pathSegments = pathname.split('/')
-    if (pathSegments[1] && pathSegments[1] !== 'admin') {
-      return pathSegments[1] // e.g., "abc-shop"
-    }
-    return ''
-  }
-
-  const tenant = getTenantPrefix()
-
-  // Build href with tenant prefix - handle production vs development
-  const buildHref = (path: string) => {
-    // Check if we're in production (subdomain)
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-    const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
-    
-    if (isProduction) {
-      // Production - we're already on subdomain, use direct path
-      return path
-    } else {
-      // Development - need tenant prefix
-      return tenant ? `/${tenant}${path}` : path
-    }
-  }
-
   // Handle navigation with loading
   const handleNavigation = (href: string) => {
     setSidebarOpen(false)
@@ -120,24 +95,15 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
       setLoggingOut(true)
       showLoading()
       
-      // Call logout API with tenant in path
-      const response = await fetch(`/api/auth/me`, { 
+      // Call logout API
+      const response = await fetch(apiUrl('/auth/me'), { 
         method: 'DELETE',
         credentials: 'include'
       })
       
       if (response.ok) {
-        // Check if we're in production
-        const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-        const isProduction = !hostname.includes('localhost') && !hostname.includes('127.0.0.1')
-        
-        if (isProduction) {
-          // Production - redirect to /admin/login (subdomain)
-          router.push('/admin/login')
-        } else {
-          // Development - include tenant
-          router.push(`/${tenant}/admin/login`)
-        }
+        // Use urlHelper for logout redirect
+        router.push(logoutUrl())
       } else {
         console.error('Logout failed')
         setLoggingOut(false)
@@ -184,8 +150,8 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         <nav className="mt-6 px-3">
           <ul className="space-y-1">
             {sidebarItems.map((item) => {
-              const href = buildHref(item.href)
-              const isActive = pathname === href || (item.href !== '/admin' && pathname.startsWith(href))
+              const href = adminUrl(item.href)
+              const isActive = pathname === href || (item.href && pathname.startsWith(href))
               
               return (
                 <li key={item.href}>
@@ -217,10 +183,10 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         {/* Customer Site Link */}
         <div className="absolute bottom-6 left-3 right-3">
           <a
-            href={buildHref('/')}
+            href={customerUrl('/')}
             onClick={(e) => {
               e.preventDefault()
-              handleNavigation(buildHref('/'))
+              handleNavigation(customerUrl('/'))
             }}
             className="flex items-center px-3 py-2.5 text-sm font-medium text-secondary-700 hover:bg-secondary-50 rounded-lg transition-colors duration-200 cursor-pointer"
           >
@@ -314,23 +280,23 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg">
                     <div className="py-2">
                       <a
-                        href={buildHref('/admin/profile')} 
+                        href={adminUrl('/profile')} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
                           setShowUserMenu(false)
-                          handleNavigation(buildHref('/admin/profile'))
+                          handleNavigation(adminUrl('/profile'))
                         }}
                       >
                         ข้อมูลส่วนตัว
                       </a>
                       <a
-                        href={buildHref('/admin/settings')} 
+                        href={adminUrl('/settings')} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
                           setShowUserMenu(false)
-                          handleNavigation(buildHref('/admin/settings'))
+                          handleNavigation(adminUrl('/settings'))
                         }}
                       >
                         ตั้งค่า
