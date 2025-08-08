@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { 
@@ -16,7 +17,6 @@ import {
   Loader2, 
   CheckCircle,
   ArrowLeft,
-  ExternalLink,
   X,
   Eye,
   EyeOff,
@@ -30,7 +30,15 @@ const companySchema = z.object({
   name: z.string().min(2, 'ชื่อบริษัทต้องมีอย่างน้อย 2 ตัวอักษร'),
   email: z.string().email('กรุณากรอกอีเมลที่ถูกต้อง'),
   phone: z.string().min(9, 'กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง'),
-  website: z.string().url('กรุณากรอก URL ที่ถูกต้อง').optional().or(z.literal('')),
+  website: z.string()
+    .refine((val) => {
+      if (!val) return true // Allow empty
+      // Check if it's a valid domain format (with or without protocol)
+      const domainRegex = /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+(\.[a-zA-Z]{2,})?$/
+      return domainRegex.test(val)
+    }, 'กรุณากรอกชื่อเว็บไซต์ที่ถูกต้อง เช่น www.example.com')
+    .optional()
+    .or(z.literal('')),
   
   // Admin Account fields
   adminName: z.string().min(2, 'กรุณากรอกชื่อผู้ดูแลระบบ'),
@@ -53,8 +61,8 @@ const companySchema = z.object({
 type CompanyFormData = z.infer<typeof companySchema>
 
 export default function CompanyRegistrationPage() {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>('')
   const [generatedSlug, setGeneratedSlug] = useState('')
@@ -125,9 +133,9 @@ export default function CompanyRegistrationPage() {
     const cleanValue = value.toLowerCase().replace(/[^a-z0-9-]/g, '')
     setGeneratedSlug(cleanValue)
     
-    // Update current domain
-    const currentDomain = typeof window !== 'undefined' ? window.location.host : 'localhost:3000'
-    setSubdomainUrl(`${cleanValue}.${currentDomain}`)
+    // Update subdomain URL display - remove www. from host
+    const currentHost = typeof window !== 'undefined' ? window.location.host.replace('www.', '') : 'aoowarranty.com'
+    setSubdomainUrl(`${cleanValue}.${currentHost}`)
 
     // Clear previous timeout
     if (checkTimeout) {
@@ -189,10 +197,20 @@ export default function CompanyRegistrationPage() {
     setLoading(true)
     
     try {
+      // Format website URL if provided
+      let formattedWebsite = data.website
+      if (formattedWebsite && formattedWebsite.trim() !== '') {
+        // Add https:// if no protocol is specified
+        if (!formattedWebsite.startsWith('http://') && !formattedWebsite.startsWith('https://')) {
+          formattedWebsite = 'https://' + formattedWebsite
+        }
+      }
+
       // Prepare form data
       const formData = new FormData()
       formData.append('companyData', JSON.stringify({
         ...data,
+        website: formattedWebsite,
         slug: generatedSlug
       }))
       
@@ -209,7 +227,8 @@ export default function CompanyRegistrationPage() {
       const result = await response.json()
 
       if (result.success) {
-        setSuccess(true)
+        // Redirect to success page with parameters
+        router.push(`/register/success?name=${encodeURIComponent(data.name)}&slug=${generatedSlug}`)
       } else {
         // Handle race condition case
         if (result.message.includes('ถูกใช้งานแล้ว')) {
@@ -226,51 +245,6 @@ export default function CompanyRegistrationPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-soft-lg border border-secondary-100 p-8 text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-10 h-10 text-green-600" />
-            </div>
-            
-            <h1 className="text-2xl font-bold text-secondary-900 mb-3">
-              สมัครสมาชิกสำเร็จ! 🎉
-            </h1>
-            
-            <p className="text-secondary-600 mb-6 leading-relaxed">
-              ระบบได้สร้างบัญชีของ <strong>{companyName}</strong> เรียบร้อยแล้ว<br />
-              คุณสามารถเข้าสู่ระบบจัดการได้ทันที
-            </p>
-            
-            <div className="bg-secondary-50 p-4 rounded-xl mb-6">
-              <p className="text-sm text-secondary-600 mb-2">เว็บไซต์ของคุณ:</p>
-              <a 
-                href={`http://${subdomainUrl}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-600 hover:text-primary-700 font-medium flex items-center justify-center space-x-2 text-sm break-all"
-              >
-                <span>{subdomainUrl}</span>
-                <ExternalLink className="w-4 h-4 flex-shrink-0" />
-              </a>
-            </div>
-            
-            <div className="space-y-3">
-              <Link href="/" className="btn-primary w-full">
-                กลับหน้าแรก
-              </Link>
-              <Link href={`http://${subdomainUrl}/admin`} className="btn-outline w-full">
-                เข้าสู่ระบบจัดการ
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -346,7 +320,7 @@ export default function CompanyRegistrationPage() {
                     maxLength={50}
                   />
                   <span className="bg-secondary-100 border border-l-0 sm:border-l border-secondary-300 px-3 py-3 sm:rounded-r-lg text-secondary-600 text-sm flex items-center justify-center mt-2 sm:mt-0 rounded-lg sm:rounded-l-none">
-                    .{typeof window !== 'undefined' ? window.location.host : 'localhost:3000'}
+                    .{typeof window !== 'undefined' ? window.location.host.replace('www.', '') : 'aoowarranty.com'}
                   </span>
                 </div>
                 
@@ -415,14 +389,17 @@ export default function CompanyRegistrationPage() {
                   เว็บไซต์ (ถ้ามี)
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   {...register('website')}
                   className="input-primary"
-                  placeholder="https://company.com"
+                  placeholder="www.company.com"
                 />
                 {errors.website && (
                   <p className="text-red-600 text-sm mt-1">{errors.website.message}</p>
                 )}
+                <p className="text-xs text-secondary-500 mt-1">
+                  ตัวอย่าง: www.example.com หรือ example.com
+                </p>
               </div>
             </div>
           </div>
