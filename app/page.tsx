@@ -349,12 +349,15 @@ const buildCompanyUrl = (companySlug: string) => {
                         
                         <hr className="my-1 border-secondary-100" />
                         
-                        <button
+                      <button
                           onClick={handleLogout}
-                          className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          className="w-full flex items-center px-4 py-2 text-sm hover:bg-red-50 transition-colors font-medium"
+                          style={{ color: '#dc2626' }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#b91c1c'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = '#dc2626'}
                         >
-                          <LogOut className="w-4 h-4 mr-3" />
-                          ออกจากระบบ
+                          <LogOut className="w-4 h-4 mr-3" style={{ color: '#dc2626' }} />
+                          <span>ออกจากระบบ</span>
                         </button>
                       </div>
                     </div>
