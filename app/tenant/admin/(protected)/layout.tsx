@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getTenantContext } from '@/lib/tenant-context'
+import { loginUrl } from '@/lib/url-helper'
 import AdminLayout from '@/components/admin/AdminLayout'
 
 async function getAuthSession() {
@@ -36,12 +37,22 @@ export default async function ProtectedAdminLayout({
   const session = await getAuthSession()
   
   if (!session) {
-    redirect(`/${tenant}/admin/login`)
+    // Use url-helper to get correct login URL
+    const redirectUrl = loginUrl({ 
+      tenant,
+      isProduction: process.env.NODE_ENV === 'production'
+    })
+    redirect(redirectUrl)
   }
   
   // Verify user belongs to this company
   if (session.companyId !== company.id) {
-    redirect(`/${tenant}/admin/login`)
+    // User is logged in but wrong company - redirect to login
+    const redirectUrl = loginUrl({ 
+      tenant,
+      isProduction: process.env.NODE_ENV === 'production'
+    })
+    redirect(redirectUrl)
   }
   
   // Prepare data for AdminLayout
