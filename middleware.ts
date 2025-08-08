@@ -7,11 +7,6 @@ export function middleware(request: NextRequest) {
   
   // Debug logging for production
   const isProduction = process.env.NODE_ENV === 'production'
-  if (isProduction) {
-    console.log('=== Middleware Production ===')
-    console.log('Hostname:', hostname)
-    console.log('Original path:', request.nextUrl.pathname)
-  }
   
   // Extract subdomain
   let subdomain = ''
@@ -40,11 +35,29 @@ export function middleware(request: NextRequest) {
     
     // Check for subdomain pattern
     if (parts.length >= 3) {
-      // Pattern: abc-shop.aoowarranty.com
       const potentialSubdomain = parts[0]
       if (potentialSubdomain !== 'www' && potentialSubdomain !== 'aoowarranty') {
         subdomain = potentialSubdomain
       }
+    }
+  }
+
+  if (isProduction) {
+    console.log('=== Middleware Debug ===')
+    console.log('Hostname:', hostname)
+    console.log('Original path:', request.nextUrl.pathname)
+    console.log('Detected subdomain:', subdomain)
+    console.log('Is localhost:', isLocalhost)
+  }
+
+  // CRITICAL FIX: Clean up URLs that already contain tenant in production
+  // This handles cases where someone navigated to /abc-shop/admin on abc-shop.aoowarranty.com
+  if (subdomain && !isLocalhost && url.pathname.startsWith(`/${subdomain}`)) {
+    // Remove the duplicate tenant from the path
+    url.pathname = url.pathname.slice(subdomain.length + 1) || '/'
+    
+    if (isProduction) {
+      console.log('Cleaned duplicate tenant, new path:', url.pathname)
     }
   }
 
@@ -54,19 +67,12 @@ export function middleware(request: NextRequest) {
   requestHeaders.set('x-tenant-host', isLocalhost ? 'localhost' : 'production')
   requestHeaders.set('x-original-hostname', hostname)
   
-  // IMPORTANT: Don't rewrite if already processed
-  // This prevents double rewriting like /tenant/admin -> /tenant/tenant/admin
+  // Check if path is already rewritten to avoid double rewriting
   const isAlreadyRewritten = url.pathname.startsWith('/tenant/')
   
-  if (isProduction) {
-    console.log('Subdomain detected:', subdomain)
-    console.log('Is already rewritten:', isAlreadyRewritten)
-    console.log('Current pathname:', url.pathname)
-  }
-  
-  // Special handling for tenant routes
+  // Only rewrite if we have a subdomain and path isn't already rewritten
   if (subdomain && !isAlreadyRewritten) {
-    // Rewrite to tenant-specific paths
+    // Map paths to internal tenant routes
     if (url.pathname === '/') {
       url.pathname = '/tenant'
     } else if (url.pathname.startsWith('/admin')) {
@@ -77,13 +83,13 @@ export function middleware(request: NextRequest) {
       url.pathname = `/tenant/my-warranties`
     }
     // For any other paths under tenant (but not API routes)
-    else if (!url.pathname.startsWith('/api/')) {
+    else if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/_next/')) {
       url.pathname = `/tenant${url.pathname}`
     }
     
     if (isProduction) {
-      console.log('Rewritten to:', url.pathname)
-      console.log('=========================')
+      console.log('Final rewritten path:', url.pathname)
+      console.log('======================')
     }
   }
   

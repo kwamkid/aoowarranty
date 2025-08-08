@@ -87,6 +87,55 @@ class UrlHelper {
   }
   
   /**
+   * Clean tenant from pathname if it's duplicated (for middleware)
+   * e.g., on abc-shop.domain.com, path /abc-shop/admin -> /admin
+   */
+  cleanTenantFromPath(pathname: string, tenant: string): string {
+    if (!tenant) return pathname
+    
+    // If pathname starts with /tenant/, remove it
+    if (pathname.startsWith(`/${tenant}/`)) {
+      return pathname.slice(tenant.length + 1) || '/'
+    }
+    
+    return pathname
+  }
+  
+  /**
+   * Check if pathname needs tenant rewrite (for middleware)
+   */
+  needsTenantRewrite(pathname: string): boolean {
+    // Don't rewrite if already has /tenant/ prefix
+    if (pathname.startsWith('/tenant/')) return false
+    
+    // Don't rewrite API routes
+    if (pathname.startsWith('/api/')) return false
+    
+    // Don't rewrite Next.js internal routes
+    if (pathname.startsWith('/_next/')) return false
+    
+    return true
+  }
+  
+  /**
+   * Rewrite path for tenant (for middleware)
+   */
+  rewritePathForTenant(pathname: string): string {
+    // Special route mappings
+    if (pathname === '/') {
+      return '/tenant'
+    } else if (pathname.startsWith('/admin')) {
+      return `/tenant/admin${pathname.slice(6)}`
+    } else if (pathname.startsWith('/register')) {
+      return `/tenant/register`
+    } else if (pathname.startsWith('/my-warranties')) {
+      return `/tenant/my-warranties`
+    } else {
+      return `/tenant${pathname}`
+    }
+  }
+  
+  /**
    * Build admin URL
    */
   adminUrl(path: string = '', config?: UrlConfig): string {
@@ -231,3 +280,8 @@ export const absoluteUrl = (path: string = '', config?: UrlConfig) => urlHelper.
 export const apiUrl = (path: string) => urlHelper.apiUrl(path)
 export const getLoginRedirectUrl = (config?: UrlConfig) => urlHelper.getLoginRedirectUrl(config)
 export const debugUrl = () => urlHelper.debug()
+
+// Export middleware helpers
+export const cleanTenantFromPath = (pathname: string, tenant: string) => urlHelper.cleanTenantFromPath(pathname, tenant)
+export const needsTenantRewrite = (pathname: string) => urlHelper.needsTenantRewrite(pathname)
+export const rewritePathForTenant = (pathname: string) => urlHelper.rewritePathForTenant(pathname)
