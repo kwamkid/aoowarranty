@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react'
 import { absoluteUrl } from '@/lib/url-helper'
 
-export default function RegistrationSuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams()
   const [companyData, setCompanyData] = useState<{
     name: string
@@ -168,5 +169,20 @@ export default function RegistrationSuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegistrationSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+          <p className="text-secondary-600">กำลังโหลด...</p>
+        </div>
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   )
 }
