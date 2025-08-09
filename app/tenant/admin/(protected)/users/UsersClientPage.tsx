@@ -43,10 +43,9 @@ interface UsersPageProps {
 }
 
 const roleLabels = {
-  owner: { label: 'เจ้าของ', color: 'purple', icon: Shield },
-  admin: { label: 'ผู้ดูแล', color: 'blue', icon: UserCheck },
+  admin: { label: 'ผู้ดูแล', color: 'green', icon: Shield },
   manager: { label: 'ผู้จัดการ', color: 'green', icon: Users },
-  viewer: { label: 'ผู้ใช้ทั่วไป', color: 'gray', icon: Eye }
+  viewer: { label: 'ผู้ใช้ทั่วไป', color: 'green', icon: Eye }
 }
 
 export default function UsersClientPage({ 

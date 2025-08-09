@@ -133,9 +133,12 @@ export default function NewUserPage() {
                 กรุณาคัดลอกรหัสผ่านและส่งให้ผู้ใช้:
               </p>
               <div className="flex items-center justify-center space-x-2">
-                <code className="bg-white px-3 py-1 rounded border border-yellow-300 font-mono">
+                <div 
+                  className="bg-white px-3 py-1 rounded border border-yellow-300 font-mono"
+                  style={{ color: '#1f2937' }}
+                >
                   {generatedPassword}
-                </code>
+                </div>
                 <button
                   onClick={copyPassword}
                   className="btn-outline p-2"
@@ -249,7 +252,7 @@ export default function NewUserPage() {
           </h2>
           
           <div>
-            <label className="flex items-center space-x-3">
+            <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="checkbox"
                 {...register('generatePassword')}
@@ -266,9 +269,12 @@ export default function NewUserPage() {
                   รหัสผ่านที่สร้างขึ้น:
                 </p>
                 <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-white px-3 py-2 rounded border border-yellow-300 font-mono text-sm">
+                  <div 
+                    className="flex-1 bg-white px-3 py-2 rounded border border-yellow-300 font-mono text-sm"
+                    style={{ color: '#1f2937' }}
+                  >
                     {generatedPassword}
-                  </code>
+                  </div>
                   <button
                     type="button"
                     onClick={copyPassword}
