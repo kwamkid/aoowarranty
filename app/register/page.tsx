@@ -33,8 +33,9 @@ const companySchema = z.object({
   website: z.string()
     .refine((val) => {
       if (!val) return true // Allow empty
-      // Check if it's a valid domain format (with or without protocol)
-      const domainRegex = /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+(\.[a-zA-Z]{2,})?$/
+      // Simple domain validation - just check basic format
+      // Allow: example.com, www.example.com, sub.example.com
+      const domainRegex = /^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/
       return domainRegex.test(val)
     }, 'กรุณากรอกชื่อเว็บไซต์ที่ถูกต้อง เช่น www.example.com')
     .optional()
