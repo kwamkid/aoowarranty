@@ -73,14 +73,16 @@ export default async function MyWarrantiesPage() {
           </p>
         </div>
         
-        {/* Add New Button */}
-        <Link
-          href={`/${tenant}/register`}
-          className="btn-primary inline-flex items-center mb-6"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          ลงทะเบียนประกันใหม่
-        </Link>
+        {/* Show Add New Button only if there are warranties */}
+        {warranties.length > 0 && (
+          <Link
+            href={`/${tenant}/register`}
+            className="btn-primary inline-flex items-center mb-6"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            ลงทะเบียนประกันใหม่
+          </Link>
+        )}
         
         {/* Warranties List */}
         {warranties.length === 0 ? (

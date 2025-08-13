@@ -278,60 +278,27 @@ export default function RegisterForm({
           </div>
         )}
         
-        {/* Product Details */}
+        {/* Warranty Period Display */}
         {selectedProduct && (
-          <div className="bg-secondary-50 p-4 rounded-lg">
-            <div className="flex items-start space-x-4">
-              {selectedProduct.image && (
-                <img 
-                  src={selectedProduct.image} 
-                  alt={selectedProduct.name}
-                  className="w-20 h-20 rounded-lg object-cover"
-                />
-              )}
-              <div className="flex-1">
-                <h4 className="font-semibold text-secondary-900">
-                  {selectedProduct.name}
-                </h4>
-                {selectedProduct.model && (
-                  <p className="text-sm text-secondary-600">
-                    รุ่น: {selectedProduct.model}
-                  </p>
-                )}
-                <p className="text-sm text-primary-600 mt-1">
-                  ประกัน: {selectedProduct.warrantyYears > 0 || selectedProduct.warrantyMonths > 0 ? (
-                    <>
-                      {selectedProduct.warrantyYears > 0 && `${selectedProduct.warrantyYears} ปี`}
-                      {selectedProduct.warrantyMonths > 0 && ` ${selectedProduct.warrantyMonths} เดือน`}
-                    </>
-                  ) : (
-                    <span className="text-secondary-500">ไม่ระบุ</span>
+          <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white p-4 rounded-lg text-center">
+            <p className="text-xs uppercase tracking-wider mb-1 opacity-90">ระยะเวลารับประกัน</p>
+            <p className="text-2xl font-bold">
+              {selectedProduct.warrantyYears > 0 || selectedProduct.warrantyMonths > 0 ? (
+                <>
+                  {selectedProduct.warrantyYears > 0 && (
+                    <span className="text-3xl">{selectedProduct.warrantyYears} ปี</span>
                   )}
-                </p>
-              </div>
-            </div>
-            
-            {/* Required Fields Info */}
-            <div className="mt-3 space-y-1">
-              <p className="text-xs font-medium text-secondary-700">ข้อมูลที่ต้องกรอก:</p>
-              <div className="flex flex-wrap gap-2">
-                {selectedProduct.requiredFields.serialNumber && (
-                  <span className="text-xs bg-white px-2 py-1 rounded">
-                    Serial Number
-                  </span>
-                )}
-                {selectedProduct.requiredFields.receiptImage && (
-                  <span className="text-xs bg-white px-2 py-1 rounded">
-                    รูปใบเสร็จ
-                  </span>
-                )}
-                {selectedProduct.requiredFields.purchaseLocation && (
-                  <span className="text-xs bg-white px-2 py-1 rounded">
-                    สถานที่ซื้อ
-                  </span>
-                )}
-              </div>
-            </div>
+                  {selectedProduct.warrantyMonths > 0 && (
+                    <span className="text-2xl">
+                      {selectedProduct.warrantyYears > 0 && ' '}
+                      {selectedProduct.warrantyMonths} เดือน
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="text-lg opacity-75">ไม่ระบุระยะเวลา</span>
+              )}
+            </p>
           </div>
         )}
         
@@ -383,21 +350,20 @@ export default function RegisterForm({
           {/* Warranty Expiry Display */}
           {warrantyExpiry && selectedProduct && (
             <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-700 flex items-center">
+              <p className="text-sm text-green-700 flex items-center justify-center">
                 <CheckCircle className="w-4 h-4 mr-2" />
-                ประกันจะเริ่มนับวันที่: {new Date(new Date(watchPurchaseDate).getTime() + 86400000).toLocaleDateString('th-TH', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })} (วันถัดไป)
-              </p>
-              <p className="text-sm text-green-700 flex items-center mt-1">
-                <CheckCircle className="w-4 h-4 mr-2" />
-                ประกันจะหมดอายุวันที่: {new Date(warrantyExpiry).toLocaleDateString('th-TH', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+                <span className="font-medium">ระยะเวลาประกัน:</span>
+                <span className="ml-2">
+                  {new Date(new Date(watchPurchaseDate).getTime() + 86400000).toLocaleDateString('th-TH', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })} - {new Date(warrantyExpiry).toLocaleDateString('th-TH', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })}
+                </span>
               </p>
             </div>
           )}
