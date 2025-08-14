@@ -1,101 +1,77 @@
 // app/tenant/admin/(protected)/registrations/page.tsx
+import { HydrationBoundary, QueryClient, dehydrate } from '@tanstack/react-query'
 import { getTenantContext } from '@/lib/tenant-context'
 import { adminDb } from '@/lib/firebase-admin'
 import RegistrationsClientPage from './RegistrationsClientPage'
+import { queryKeys } from '@/lib/query/keys'
 
-interface Warranty {
-  id: string
-  companyId: string
-  productId: string
-  customerId: string
-  customerInfo: {
-    name: string
-    lineDisplayName: string
-    phone: string
-    email: string
-    address: string
-    district: string
-    amphoe: string
-    province: string
-    postcode: string
-  }
-  productInfo: {
-    brandName: string
-    productName: string
-    model: string
-    serialNumber?: string
-    purchaseLocation?: string
-  }
-  purchaseDate: string
-  warrantyStartDate: string
-  warrantyExpiry: string
-  receiptImage?: string
-  status: 'active' | 'expired' | 'claimed'
-  registrationDate: Date
-  notes?: string
-}
-
-async function getWarranties(companyId: string): Promise<Warranty[]> {
-  const warrantiesSnapshot = await adminDb
-    .collection('warranties')
-    .where('companyId', '==', companyId)
-    .orderBy('registrationDate', 'desc')
-    .limit(100) // Limit for performance
-    .get()
-  
-  const warranties: Warranty[] = []
-  
-  for (const doc of warrantiesSnapshot.docs) {
-    const data = doc.data()
+// Server-side data fetching function
+async function fetchWarrantiesServer(companyId: string) {
+  try {
+    const warrantiesSnapshot = await adminDb
+      .collection('warranties')
+      .where('companyId', '==', companyId)
+      .orderBy('registrationDate', 'desc')
+      .limit(200)
+      .get()
     
-    // Convert Firestore Timestamp to Date
-    const registrationDate = data.registrationDate?.toDate?.() || data.registrationDate || new Date()
-    
-    // Check warranty status
-    const expiryDate = new Date(data.warrantyExpiry)
     const today = new Date()
-    const status = data.status === 'claimed' ? 'claimed' : 
-                   expiryDate < today ? 'expired' : 'active'
+    today.setHours(0, 0, 0, 0)
     
-    warranties.push({
-      id: doc.id,
-      companyId: data.companyId,
-      productId: data.productId,
-      customerId: data.customerId,
-      customerInfo: data.customerInfo,
-      productInfo: data.productInfo,
-      purchaseDate: data.purchaseDate,
-      warrantyStartDate: data.warrantyStartDate,
-      warrantyExpiry: data.warrantyExpiry,
-      receiptImage: data.receiptImage || '',
-      status: status,
-      registrationDate: registrationDate instanceof Date ? registrationDate : new Date(registrationDate),
-      notes: data.notes || ''
+    const warranties = warrantiesSnapshot.docs.map(doc => {
+      const data = doc.data()
+      const registrationDate = data.registrationDate?.toDate?.() || data.registrationDate || new Date()
+      
+      // Check warranty status
+      const expiryDate = new Date(data.warrantyExpiry)
+      expiryDate.setHours(0, 0, 0, 0)
+      
+      let status = data.status
+      if (status !== 'claimed' && expiryDate < today) {
+        status = 'expired'
+      }
+      
+      return {
+        id: doc.id,
+        companyId: data.companyId,
+        productId: data.productId,
+        customerId: data.customerId,
+        customerInfo: data.customerInfo,
+        productInfo: data.productInfo,
+        purchaseDate: data.purchaseDate,
+        warrantyStartDate: data.warrantyStartDate,
+        warrantyExpiry: data.warrantyExpiry,
+        receiptImage: data.receiptImage || '',
+        status: status,
+        registrationDate: registrationDate instanceof Date ? registrationDate.toISOString() : registrationDate,
+        notes: data.notes || ''
+      }
     })
+    
+    return warranties
+  } catch (error) {
+    console.error('Error fetching warranties:', error)
+    return []
   }
-  
-  return warranties
 }
 
 export default async function RegistrationsPage() {
   const { company } = await getTenantContext()
   if (!company) return null
   
-  let warranties: Warranty[] = []
-  let tenant = company.slug
+  // Create query client for server-side
+  const queryClient = new QueryClient()
   
-  try {
-    warranties = await getWarranties(company.id)
-  } catch (error) {
-    console.error('Error fetching warranties:', error)
-    warranties = []
-  }
+  // Prefetch warranties data
+  await queryClient.prefetchQuery({
+    queryKey: queryKeys.warranties.lists(),
+    queryFn: () => fetchWarrantiesServer(company.id),
+    staleTime: 30 * 1000, // 30 seconds
+  })
   
-  // Serialize warranty data
-  const serializedWarranties = warranties.map(warranty => ({
-    ...warranty,
-    registrationDate: warranty.registrationDate.toISOString()
-  }))
-  
-  return <RegistrationsClientPage initialWarranties={serializedWarranties} tenant={tenant} />
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <RegistrationsClientPage tenant={company.slug} />
+    </HydrationBoundary>
+  )
 }

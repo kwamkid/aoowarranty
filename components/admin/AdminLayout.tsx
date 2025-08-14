@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -21,7 +21,6 @@ import {
 import { cn } from '@/lib/utils'
 import { useLoadingRouter } from '@/hooks/useLoadingRouter'
 import { useLoading } from '@/components/providers/LoadingProvider'
-import { adminUrl, customerUrl, logoutUrl, apiUrl } from '@/lib/url-helper'
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -79,12 +78,38 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const router = useLoadingRouter()
   const { showLoading, hideLoading } = useLoading()
 
+  // Get tenant from pathname
+  const getTenant = () => {
+    const pathSegments = pathname.split('/')
+    return pathSegments[1] || ''
+  }
+
+  const tenant = getTenant()
+
+  // Build URLs client-side only
+  const buildAdminUrl = (path: string) => {
+    if (!mounted) return '#'
+    return `/${tenant}/admin${path}`
+  }
+
+  const buildCustomerUrl = () => {
+    if (!mounted) return '#'
+    return `/${tenant}`
+  }
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // Handle navigation with loading
-  const handleNavigation = (href: string) => {
+  const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault()
+    if (!mounted) return
     setSidebarOpen(false)
     router.push(href)
   }
@@ -96,7 +121,7 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
       showLoading()
       
       // Call logout API
-      const response = await fetch(apiUrl('/auth/me'), { 
+      const response = await fetch('/api/auth/me', { 
         method: 'DELETE',
         credentials: 'include'
       })
@@ -126,6 +151,17 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
       setLoggingOut(false)
       hideLoading()
     }
+  }
+
+  // Check if path is active
+  const isActiveItem = (itemHref: string) => {
+    const fullPath = buildAdminUrl(itemHref)
+    if (itemHref === '') {
+      // Dashboard is active only on exact match
+      return pathname === fullPath
+    }
+    // Other items are active if path starts with them
+    return pathname.startsWith(fullPath)
   }
 
   return (
@@ -162,17 +198,14 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         <nav className="mt-6 px-3">
           <ul className="space-y-1">
             {sidebarItems.map((item) => {
-              const href = adminUrl(item.href)
-              const isActive = pathname === href || (item.href && pathname.startsWith(href))
+              const href = buildAdminUrl(item.href)
+              const isActive = mounted && isActiveItem(item.href)
               
               return (
                 <li key={item.href}>
                   <a
                     href={href}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      handleNavigation(href)
-                    }}
+                    onClick={(e) => handleNavigation(e, href)}
                     className={cn(
                       "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer",
                       isActive
@@ -195,11 +228,8 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
         {/* Customer Site Link */}
         <div className="absolute bottom-6 left-3 right-3">
           <a
-            href={customerUrl('/')}
-            onClick={(e) => {
-              e.preventDefault()
-              handleNavigation(customerUrl('/'))
-            }}
+            href={buildCustomerUrl()}
+            onClick={(e) => handleNavigation(e, buildCustomerUrl())}
             className="flex items-center px-3 py-2.5 text-sm font-medium text-secondary-700 hover:bg-secondary-50 rounded-lg transition-colors duration-200 cursor-pointer"
           >
             <Home className="w-5 h-5 mr-3" style={{ color: '#6366f1' }} />
@@ -289,26 +319,28 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
 
                 {/* Dropdown Menu */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg">
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg z-50">
                     <div className="py-2">
                       <a
-                        href={adminUrl('/profile')} 
+                        href={mounted ? buildAdminUrl('/profile') : '#'} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
+                          if (!mounted) return
                           setShowUserMenu(false)
-                          handleNavigation(adminUrl('/profile'))
+                          router.push(buildAdminUrl('/profile'))
                         }}
                       >
                         ข้อมูลส่วนตัว
                       </a>
                       <a
-                        href={adminUrl('/settings')} 
+                        href={mounted ? buildAdminUrl('/settings') : '#'} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
+                          if (!mounted) return
                           setShowUserMenu(false)
-                          handleNavigation(adminUrl('/settings'))
+                          router.push(buildAdminUrl('/settings'))
                         }}
                       >
                         ตั้งค่า

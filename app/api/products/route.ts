@@ -4,21 +4,22 @@ import { adminDb, adminStorage } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
 import { generateId } from '@/lib/utils'
 
-// Get auth session
+// Get auth session with better error handling
 async function getAuthSession() {
-  const cookieStore = await cookies()
-  const sessionCookie = cookieStore.get('auth-session')
-  
-  if (!sessionCookie) return null
-  
   try {
+    const cookieStore = await cookies()
+    const sessionCookie = cookieStore.get('auth-session')
+    
+    if (!sessionCookie?.value) return null
+    
     return JSON.parse(sessionCookie.value)
-  } catch {
+  } catch (error) {
+    console.error('Session parse error:', error)
     return null
   }
 }
 
-// GET - List products
+// GET - List products with better performance
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession()
@@ -30,67 +31,99 @@ export async function GET(request: NextRequest) {
     }
     
     const { searchParams } = new URL(request.url)
-    const brandId = searchParams.get('brandId')
+    const brandId = searchParams.get('brandId') || searchParams.get('brand')
     const search = searchParams.get('search') || ''
     
-    // Get products for this company
-    let query = adminDb.collection('products')
+    // Start parallel queries
+    const productsPromise = adminDb.collection('products')
       .where('companyId', '==', session.companyId)
       .orderBy('name', 'asc')
+      .get()
     
-    // Filter by brand if specified
-    if (brandId) {
-      query = query.where('brandId', '==', brandId)
-    }
-    
-    const snapshot = await query.get()
-    
-    // Get brands for mapping
-    const brandsSnapshot = await adminDb.collection('brands')
+    const brandsPromise = adminDb.collection('brands')
       .where('companyId', '==', session.companyId)
       .get()
     
+    // Execute queries in parallel
+    const [productsSnapshot, brandsSnapshot] = await Promise.all([
+      productsPromise,
+      brandsPromise
+    ])
+    
+    // Create brands map for quick lookup
     const brandsMap = new Map()
     brandsSnapshot.docs.forEach(doc => {
       brandsMap.set(doc.id, doc.data().name)
     })
     
-    interface ProductData {
-      id: string
-      name: string
-      model: string
-      brandId: string
-      brandName?: string
-      description?: string
-      image?: string
-      warrantyYears: number
-      warrantyMonths: number
-      requiredFields: any
-      companyId: string
-      isActive: boolean
-      createdAt: any
-      createdBy: string
+    // Process products
+    let products = await Promise.all(
+      productsSnapshot.docs.map(async (doc) => {
+        const data = doc.data()
+        
+        // Skip if brand filter doesn't match
+        if (brandId && data.brandId !== brandId) {
+          return null
+        }
+        
+        // Get warranty count in the background
+        const warrantyCountPromise = adminDb
+          .collection('warranties')
+          .where('companyId', '==', session.companyId)
+          .where('productId', '==', doc.id)
+          .count()
+          .get()
+        
+        const warrantyCount = await warrantyCountPromise
+        const createdAt = data.createdAt?.toDate?.() || data.createdAt || new Date()
+        
+        return {
+          id: doc.id,
+          name: data.name,
+          model: data.model || '',
+          brandId: data.brandId,
+          brandName: brandsMap.get(data.brandId) || 'Unknown',
+          description: data.description || '',
+          image: data.image || '',
+          warrantyYears: data.warrantyYears || 0,
+          warrantyMonths: data.warrantyMonths || 0,
+          requiredFields: data.requiredFields || {
+            serialNumber: true,
+            receiptImage: true,
+            purchaseLocation: false
+          },
+          companyId: data.companyId,
+          isActive: data.isActive !== false,
+          createdAt: createdAt instanceof Date ? createdAt.toISOString() : createdAt,
+          createdBy: data.createdBy,
+          warrantyCount: warrantyCount.data().count
+        }
+      })
+    )
+    
+    // Filter out nulls from brand filtering
+    products = products.filter(p => p !== null)
+    
+    // Apply search filter if provided
+    if (search) {
+      const searchLower = search.toLowerCase()
+      products = products.filter(product => 
+        product.name.toLowerCase().includes(searchLower) ||
+        product.model.toLowerCase().includes(searchLower) ||
+        product.brandName?.toLowerCase().includes(searchLower)
+      )
     }
     
-    let products: ProductData[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      brandName: brandsMap.get(doc.data().brandId)
-    } as ProductData))
-    
-    // Filter by search term
-    if (search) {
-      products = products.filter(product => 
-        product.name.toLowerCase().includes(search.toLowerCase()) ||
-        product.model.toLowerCase().includes(search.toLowerCase()) ||
-        product.brandName?.toLowerCase().includes(search.toLowerCase())
-      )
+    // Set cache headers for better performance
+    const headers = {
+      'Cache-Control': 'private, max-age=10, stale-while-revalidate=60',
     }
     
     return NextResponse.json({
       success: true,
-      data: products
-    })
+      data: products,
+      count: products.length
+    }, { headers })
     
   } catch (error: any) {
     console.error('Error fetching products:', error)
@@ -102,7 +135,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create product
+// POST - Create product (unchanged)
 export async function POST(request: NextRequest) {
   try {
     const session = await getAuthSession()
@@ -116,14 +149,14 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const brandId = formData.get('brandId') as string
     const name = formData.get('name') as string
-    const model = formData.get('model') as string || '' // ทำให้ model เป็น optional
+    const model = formData.get('model') as string || ''
     const warrantyYears = parseInt(formData.get('warrantyYears') as string) || 0
     const warrantyMonths = parseInt(formData.get('warrantyMonths') as string) || 0
     const description = formData.get('description') as string
     const requiredFieldsStr = formData.get('requiredFields') as string
     const imageFile = formData.get('image') as File | null
     
-    // Validate required fields (ลบ model ออกจาก validation)
+    // Validate required fields
     if (!brandId || !name) {
       return NextResponse.json({
         success: false,

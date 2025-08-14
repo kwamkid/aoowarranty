@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Plus, 
   Search, 
@@ -13,64 +13,271 @@ import {
   Calendar,
   Loader2,
   FileText,
-  X
+  X,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react'
 import DropdownMenu from '@/components/ui/DropdownMenu'
-import { useLoading } from '@/components/providers/LoadingProvider'
 import { useDialog } from '@/hooks/useDialog'
-
-interface Product {
-  id: string
-  companyId: string
-  brandId: string
-  brandName?: string
-  name: string
-  model: string
-  warrantyYears: number
-  warrantyMonths: number
-  requiredFields: {
-    serialNumber: boolean
-    receiptImage: boolean
-    purchaseLocation: boolean
-  }
-  description?: string
-  image?: string
-  isActive: boolean
-  createdAt: string | Date
-  warrantyCount?: number
-}
+import { useProducts, useDeleteProduct } from '@/lib/query/hooks/useProducts'
+import { useBrands } from '@/lib/query/hooks/useBrands'
 
 interface ProductsPageProps {
-  initialProducts: Product[]
-  brands: { id: string; name: string }[]
-  selectedBrandId?: string
   tenant: string
 }
 
-export default function ProductsClientPage({ 
-  initialProducts = [], 
-  brands = [],
-  selectedBrandId,
-  tenant 
-}: ProductsPageProps) {
-  const [products, setProducts] = useState<Product[]>(initialProducts || [])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [deleting, setDeleting] = useState<string | null>(null)
-  const [selectedBrand, setSelectedBrand] = useState<string>(selectedBrandId || '')
-  const router = useRouter()
-  const { showLoading, hideLoading } = useLoading()
-  const { confirm, error, success, DialogComponents } = useDialog()
+// Items per page options
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
+const DEFAULT_ITEMS_PER_PAGE = 20
+
+// Skeleton loader component
+function ProductsSkeleton() {
+  return (
+    <div className="card">
+      <div className="animate-pulse">
+        <div className="space-y-3">
+          {/* Table header skeleton */}
+          <div className="grid grid-cols-6 gap-4 px-4 py-3 border-b border-secondary-200">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-4 bg-secondary-200 rounded"></div>
+            ))}
+          </div>
+          {/* Table rows skeleton */}
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="grid grid-cols-6 gap-4 px-4 py-4">
+              {[1, 2, 3, 4, 5, 6].map((j) => (
+                <div key={j} className="h-4 bg-secondary-100 rounded"></div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Pagination component
+function Pagination({ 
+  currentPage, 
+  totalPages, 
+  onPageChange,
+  itemsPerPage,
+  totalItems,
+  onItemsPerPageChange 
+}: {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  itemsPerPage: number
+  totalItems: number
+  onItemsPerPageChange: (items: number) => void
+}) {
+  const startItem = (currentPage - 1) * itemsPerPage + 1
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems)
   
-  // Filter products based on search and brand
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.brandName?.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesBrand = !selectedBrand || product.brandId === selectedBrand
-    
-    return matchesSearch && matchesBrand
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-secondary-200">
+      {/* Items per page selector */}
+      <div className="flex items-center gap-2 text-sm text-secondary-600">
+        <span>แสดง</span>
+        <select
+          value={itemsPerPage}
+          onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+          className="px-3 py-1 border border-secondary-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+          {ITEMS_PER_PAGE_OPTIONS.map(option => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+        <span>รายการ</span>
+      </div>
+      
+      {/* Page info */}
+      <div className="text-sm text-secondary-600">
+        แสดง {startItem}-{endItem} จาก {totalItems} รายการ
+      </div>
+      
+      {/* Pagination buttons */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+          className="p-1 rounded hover:bg-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="หน้าแรก"
+        >
+          <ChevronsLeft className="w-5 h-5" />
+        </button>
+        
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="p-1 rounded hover:bg-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="หน้าก่อนหน้า"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        
+        {/* Page numbers */}
+        <div className="flex items-center gap-1 mx-2">
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNumber
+            if (totalPages <= 5) {
+              pageNumber = i + 1
+            } else if (currentPage <= 3) {
+              pageNumber = i + 1
+            } else if (currentPage >= totalPages - 2) {
+              pageNumber = totalPages - 4 + i
+            } else {
+              pageNumber = currentPage - 2 + i
+            }
+            
+            return (
+              <button
+                key={i}
+                onClick={() => onPageChange(pageNumber)}
+                className={`min-w-[32px] h-8 px-2 rounded text-sm font-medium transition-colors ${
+                  currentPage === pageNumber
+                    ? 'bg-primary-500 text-white'
+                    : 'hover:bg-secondary-100 text-secondary-700'
+                }`}
+              >
+                {pageNumber}
+              </button>
+            )
+          })}
+        </div>
+        
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="p-1 rounded hover:bg-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="หน้าถัดไป"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+        
+        <button
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className="p-1 rounded hover:bg-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="หน้าสุดท้าย"
+        >
+          <ChevronsRight className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function ProductsClientPage({ tenant }: ProductsPageProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE)
+  const { confirm, error: showError, success, DialogComponents } = useDialog()
+  
+  // Get selected brand from URL
+  const selectedBrand = searchParams.get('brand') || ''
+  
+  // React Query hooks
+  const { 
+    data: allProducts = [], 
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+    isFetching: productsFetching
+  } = useProducts() // ดึงสินค้าทั้งหมดไม่ filter by brand
+  
+  const { 
+    data: brands = [], 
+    isLoading: brandsLoading 
+  } = useBrands()
+  
+  const deleteProductMutation = useDeleteProduct({
+    onSuccess: () => {
+      success('ลบสินค้าสำเร็จ')
+    },
+    onError: (error) => {
+      showError('เกิดข้อผิดพลาดในการลบสินค้า', error.message)
+    }
   })
+  
+  // Filter products based on brand selection and search
+  const filteredProducts = useMemo(() => {
+    let filtered = allProducts
+    
+    // Filter by selected brand
+    if (selectedBrand) {
+      filtered = filtered.filter(product => product.brandId === selectedBrand)
+    }
+    
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(searchLower) ||
+        product.model?.toLowerCase().includes(searchLower) ||
+        product.brandName?.toLowerCase().includes(searchLower)
+      )
+    }
+    
+    return filtered
+  }, [allProducts, selectedBrand, searchTerm])
+  
+  // Calculate brand counts from ALL products (not filtered)
+  const brandCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    allProducts.forEach(product => {
+      const count = counts.get(product.brandId) || 0
+      counts.set(product.brandId, count + 1)
+    })
+    return counts
+  }, [allProducts])
+  
+  // Pagination calculations
+  const totalItems = filteredProducts.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  
+  // Reset to page 1 when filters change
+  const resetPagination = useCallback(() => {
+    setCurrentPage(1)
+  }, [])
+  
+  // Get paginated products
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return filteredProducts.slice(startIndex, endIndex)
+  }, [filteredProducts, currentPage, itemsPerPage])
+  
+  // Handle search change
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    resetPagination()
+  }
+  
+  // Handle brand filter (ไม่ต้อง refetch data)
+  const handleBrandFilter = (brandId: string) => {
+    const params = new URLSearchParams(searchParams)
+    if (brandId) {
+      params.set('brand', brandId)
+    } else {
+      params.delete('brand')
+    }
+    // ใช้ replace แทน push เพื่อไม่เพิ่ม history
+    router.replace(`/${tenant}/admin/products?${params.toString()}`, { scroll: false })
+    resetPagination()
+  }
+  
+  // Handle items per page change
+  const handleItemsPerPageChange = (items: number) => {
+    setItemsPerPage(items)
+    setCurrentPage(1)
+  }
   
   // Get warranty period display
   const getWarrantyPeriod = (years: number, months: number) => {
@@ -80,58 +287,65 @@ export default function ProductsClientPage({
     return parts.join(' ') || 'ไม่ระบุ'
   }
   
-  // Handle brand filter
-  const handleBrandFilter = (brandId: string) => {
-    setSelectedBrand(brandId)
-    if (brandId) {
-      router.push(`/${tenant}/admin/products?brand=${brandId}`)
-    } else {
-      router.push(`/${tenant}/admin/products`)
-    }
+  // Handle delete product
+  const handleDelete = async (productId: string, productName: string, productModel?: string) => {
+    const displayName = productModel ? `${productName} - ${productModel}` : productName
+    
+    const confirmed = await confirm({
+      title: 'ยืนยันการลบสินค้า',
+      message: `ต้องการลบสินค้า "${displayName}" หรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`,
+      type: 'danger',
+      confirmText: 'ลบสินค้า',
+      cancelText: 'ยกเลิก',
+      requireConfirmation: productName
+    })
+    
+    if (!confirmed) return
+    
+    deleteProductMutation.mutate(productId)
   }
   
-  // Handle delete product
-  const handleDelete = async (productId: string, productName: string, productModel: string) => {
-    try {
-      // สร้างข้อความสำหรับยืนยัน
-      const displayName = productModel ? `${productName} - ${productModel}` : productName
-      
-      const confirmed = await confirm({
-        title: 'ยืนยันการลบสินค้า',
-        message: `ต้องการลบสินค้า "${displayName}" หรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`,
-        type: 'danger',
-        confirmText: 'ลบสินค้า',
-        cancelText: 'ยกเลิก',
-        requireConfirmation: productName // ต้องพิมพ์ชื่อสินค้าเพื่อยืนยัน
-      })
-      
-      if (!confirmed) return
-      
-      setDeleting(productId)
-      showLoading()
-      
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE'
-      })
-      
-      const result = await response.json()
-      
-      if (result.success) {
-        // Remove from local state
-        setProducts(products.filter(p => p.id !== productId))
-        success('ลบสินค้าสำเร็จ')
-        // Refresh to get updated counts
-        router.refresh()
-      } else {
-        error(result.message || 'เกิดข้อผิดพลาดในการลบสินค้า')
-      }
-    } catch (err) {
-      console.error('Delete error:', err)
-      error('เกิดข้อผิดพลาดในการลบสินค้า')
-    } finally {
-      setDeleting(null)
-      hideLoading()
-    }
+  // Loading state
+  if (productsLoading || brandsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-secondary-900">จัดการสินค้า</h1>
+            <p className="text-sm text-secondary-600 mt-1">
+              จัดการข้อมูลสินค้าและระยะเวลาประกัน
+            </p>
+          </div>
+        </div>
+        <ProductsSkeleton />
+      </div>
+    )
+  }
+  
+  // Error state
+  if (productsError) {
+    return (
+      <div className="card">
+        <div className="text-center py-12">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-lg font-medium text-secondary-900 mb-2">
+            เกิดข้อผิดพลาดในการโหลดข้อมูล
+          </h3>
+          <p className="text-sm text-secondary-600 mb-6">
+            ไม่สามารถโหลดข้อมูลสินค้าได้ กรุณาลองใหม่อีกครั้ง
+          </p>
+          <button
+            onClick={() => refetchProducts()}
+            className="btn-primary inline-flex items-center"
+          >
+            <RefreshCw className="w-5 h-5 mr-2" />
+            ลองใหม่
+          </button>
+        </div>
+      </div>
+    )
   }
   
   return (
@@ -145,13 +359,24 @@ export default function ProductsClientPage({
           </p>
         </div>
         
-        <Link
-          href={`/${tenant}/admin/products/new`}
-          className="btn-primary inline-flex items-center justify-center"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          เพิ่มสินค้าใหม่
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => refetchProducts()}
+            disabled={productsFetching}
+            className="btn-outline inline-flex items-center"
+            title="รีเฟรชข้อมูล"
+          >
+            <RefreshCw className={`w-5 h-5 ${productsFetching ? 'animate-spin' : ''}`} />
+          </button>
+          
+          <Link
+            href={`/${tenant}/admin/products/new`}
+            className="btn-primary inline-flex items-center justify-center"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            เพิ่มสินค้าใหม่
+          </Link>
+        </div>
       </div>
       
       {/* Search Bar */}
@@ -162,9 +387,17 @@ export default function ProductsClientPage({
             type="text"
             placeholder="ค้นหาสินค้า..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
+          {searchTerm && (
+            <button
+              onClick={() => handleSearchChange('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary-400 hover:text-secondary-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
       
@@ -179,11 +412,11 @@ export default function ProductsClientPage({
                 : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
             }`}
           >
-            ทั้งหมด ({products.length})
+            ทั้งหมด ({allProducts.length})
           </button>
           
           {brands.map(brand => {
-            const count = products.filter(p => p.brandId === brand.id).length
+            const count = brandCounts.get(brand.id) || 0
             return (
               <button
                 key={brand.id}
@@ -233,9 +466,9 @@ export default function ProductsClientPage({
           </div>
         </div>
       ) : (
-        <div className="card">
+        <div className="card p-0">
           <div className="overflow-x-auto">
-            <table className="w-full relative">
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-secondary-200">
                   <th className="text-left px-4 py-3 text-sm font-medium text-secondary-700">สินค้า</th>
@@ -247,14 +480,8 @@ export default function ProductsClientPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-secondary-100">
-                {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-secondary-50 transition-colors relative">
-                    {deleting === product.id && (
-                      <td colSpan={6} className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
-                      </td>
-                    )}
-                    
+                {paginatedProducts.map((product) => (
+                  <tr key={product.id} className="hover:bg-secondary-50 transition-colors">
                     {/* Product Name & Model */}
                     <td className="px-4 py-4">
                       <div>
@@ -269,7 +496,7 @@ export default function ProductsClientPage({
                       </div>
                     </td>
                     
-                    {/* Brand with Pill */}
+                    {/* Brand */}
                     <td className="px-4 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         {product.brandName}
@@ -311,8 +538,15 @@ export default function ProductsClientPage({
                     <td className="px-4 py-4 text-right">
                       <DropdownMenu
                         trigger={
-                          <button className="p-1 hover:bg-secondary-100 rounded-lg transition-colors">
-                            <MoreVertical className="w-5 h-5 text-secondary-600" />
+                          <button 
+                            className="p-1 hover:bg-secondary-100 rounded-lg transition-colors"
+                            disabled={deleteProductMutation.isPending}
+                          >
+                            {deleteProductMutation.isPending && deleteProductMutation.variables === product.id ? (
+                              <Loader2 className="w-5 h-5 text-secondary-600 animate-spin" />
+                            ) : (
+                              <MoreVertical className="w-5 h-5 text-secondary-600" />
+                            )}
                           </button>
                         }
                         items={[
@@ -326,7 +560,7 @@ export default function ProductsClientPage({
                             icon: <Trash2 className="w-4 h-4" />,
                             onClick: () => handleDelete(product.id, product.name, product.model),
                             className: 'text-red-600 hover:bg-red-50',
-                            disabled: product.warrantyCount && product.warrantyCount > 0
+                            disabled: (product.warrantyCount && product.warrantyCount > 0) || deleteProductMutation.isPending
                           }
                         ]}
                       />
@@ -336,10 +570,22 @@ export default function ProductsClientPage({
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={totalItems}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </div>
       )}
       
-      {/* Render Dialog Components */}
+      {/* Dialog Components */}
       {DialogComponents}
     </div>
   )

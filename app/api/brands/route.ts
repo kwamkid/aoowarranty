@@ -1,24 +1,25 @@
 // app/api/brands/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb, adminStorage } from '@/lib/firebase-admin'
-import { headers, cookies } from 'next/headers'
+import { cookies } from 'next/headers'
 import { generateId } from '@/lib/utils'
 
-// Get auth session
+// Get auth session with better error handling
 async function getAuthSession() {
-  const cookieStore = await cookies()
-  const sessionCookie = cookieStore.get('auth-session')
-  
-  if (!sessionCookie) return null
-  
   try {
+    const cookieStore = await cookies()
+    const sessionCookie = cookieStore.get('auth-session')
+    
+    if (!sessionCookie?.value) return null
+    
     return JSON.parse(sessionCookie.value)
-  } catch {
+  } catch (error) {
+    console.error('Session parse error:', error)
     return null
   }
 }
 
-// GET - List brands
+// GET - List brands with product counts
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession()
@@ -33,40 +34,61 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     
     // Get brands for this company
-    let query = adminDb.collection('brands')
+    const brandsSnapshot = await adminDb.collection('brands')
       .where('companyId', '==', session.companyId)
       .orderBy('name', 'asc')
+      .get()
     
-    const snapshot = await query.get()
+    // Get all products for counting (more efficient than individual counts)
+    const productsSnapshot = await adminDb.collection('products')
+      .where('companyId', '==', session.companyId)
+      .select('brandId') // Only get brandId field to reduce data transfer
+      .get()
     
-    interface BrandData {
-      id: string
-      name: string
-      description?: string
-      logo?: string
-      companyId: string
-      isActive: boolean
-      createdAt: any
-      createdBy: string
-    }
+    // Count products per brand
+    const productCounts = new Map<string, number>()
+    productsSnapshot.docs.forEach(doc => {
+      const brandId = doc.data().brandId
+      productCounts.set(brandId, (productCounts.get(brandId) || 0) + 1)
+    })
     
-    let brands: BrandData[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as BrandData))
+    // Process brands
+    let brands = brandsSnapshot.docs.map(doc => {
+      const data = doc.data()
+      const createdAt = data.createdAt?.toDate?.() || data.createdAt || new Date()
+      
+      return {
+        id: doc.id,
+        name: data.name,
+        description: data.description || '',
+        logo: data.logo || '',
+        companyId: data.companyId,
+        isActive: data.isActive !== false,
+        createdAt: createdAt instanceof Date ? createdAt.toISOString() : createdAt,
+        createdBy: data.createdBy || '',
+        productCount: productCounts.get(doc.id) || 0
+      }
+    })
     
     // Filter by search term
     if (search) {
+      const searchLower = search.toLowerCase()
       brands = brands.filter(brand => 
-        brand.name.toLowerCase().includes(search.toLowerCase()) ||
-        brand.description?.toLowerCase().includes(search.toLowerCase())
+        brand.name.toLowerCase().includes(searchLower) ||
+        brand.description?.toLowerCase().includes(searchLower)
       )
+    }
+    
+    // Set cache headers
+    const headers = {
+      'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
     }
     
     return NextResponse.json({
       success: true,
-      data: brands
-    })
+      data: brands,
+      count: brands.length
+    }, { headers })
     
   } catch (error: any) {
     console.error('Error fetching brands:', error)
@@ -78,7 +100,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create brand
+// POST - Create brand (unchanged)
 export async function POST(request: NextRequest) {
   try {
     const session = await getAuthSession()
@@ -159,7 +181,8 @@ export async function POST(request: NextRequest) {
       message: 'เพิ่มแบรนด์สำเร็จ',
       data: {
         id: brandId,
-        ...brandData
+        ...brandData,
+        productCount: 0 // New brand has no products
       }
     })
     
