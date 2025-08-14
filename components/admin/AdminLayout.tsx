@@ -38,37 +38,37 @@ interface AdminLayoutProps {
 const sidebarItems = [
   {
     title: 'แดชบอร์ด',
-    href: '/admin',
+    href: '',
     icon: LayoutDashboard,
     iconColor: '#3b82f6' // blue-500
   },
   {
     title: 'จัดการแบรนด์',
-    href: '/admin/brands',
+    href: 'brands',
     icon: Building2,
     iconColor: '#a855f7' // purple-500
   },
   {
     title: 'จัดการสินค้า',
-    href: '/admin/products',
+    href: 'products',
     icon: Package,
     iconColor: '#22c55e' // green-500
   },
   {
     title: 'ข้อมูลการลงทะเบียน',
-    href: '/admin/registrations',
+    href: 'registrations',
     icon: FileText,
     iconColor: '#f97316' // orange-500
   },
   {
     title: 'จัดการผู้ใช้',
-    href: '/admin/users',
+    href: 'users',
     icon: Users,
     iconColor: '#ec4899' // pink-500
   },
   {
     title: 'ตั้งค่าระบบ',
-    href: '/admin/settings',
+    href: 'settings',
     icon: Settings,
     iconColor: '#6b7280' // gray-500
   }
@@ -83,20 +83,54 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   const router = useLoadingRouter()
   const { showLoading, hideLoading } = useLoading()
 
-  // Get tenant from pathname
+  // Debug pathname
+  useEffect(() => {
+    console.log('Current pathname:', pathname)
+    console.log('Tenant:', pathname.split('/')[1])
+  }, [pathname])
+
+  // Get tenant from pathname or headers
   const getTenant = () => {
+    // Check if we're in a rewritten path
+    if (pathname.startsWith('/tenant/')) {
+      // Get tenant from headers if available
+      if (typeof window !== 'undefined') {
+        // Try to get from URL
+        const hostname = window.location.hostname
+        const parts = hostname.split('.')
+        
+        // Check subdomain
+        if (parts.length >= 3 && parts[0] !== 'www') {
+          return parts[0]
+        }
+        
+        // Check localhost pattern
+        const urlPath = window.location.pathname
+        const pathParts = urlPath.split('/')
+        if (pathParts[1] && pathParts[1] !== 'tenant') {
+          return pathParts[1]
+        }
+      }
+    }
+    
+    // Normal path
     const pathSegments = pathname.split('/')
     return pathSegments[1] || ''
   }
 
   const tenant = getTenant()
 
-  // Build URLs client-side only
+  // Build URLs based on current location
   const buildAdminUrl = (path: string) => {
     if (!mounted) return '#'
-    // Remove leading slash from path since we're building full path
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path
-    return `/${tenant}/${cleanPath}`
+    
+    // If empty path (dashboard), return current admin root
+    if (!path) {
+      return `/${tenant}/admin`
+    }
+    
+    // For other paths, append to admin base
+    return `/${tenant}/admin/${path}`
   }
 
   const buildCustomerUrl = () => {
@@ -157,13 +191,12 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
 
   // Check if path is active
   const isActiveItem = (itemHref: string) => {
-    const fullPath = buildAdminUrl(itemHref)
-    if (itemHref === '/admin') {
-      // Dashboard is active only on exact match
-      return pathname === fullPath
+    if (!itemHref) {
+      // Dashboard - check if we're at admin root
+      return pathname.endsWith('/admin')
     }
-    // Other items are active if path starts with them
-    return pathname.startsWith(fullPath)
+    // Other items - check if path includes the href
+    return pathname.includes(`/admin/${itemHref}`)
   }
 
   return (
@@ -324,25 +357,25 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg z-50">
                     <div className="py-2">
                       <a
-                        href={mounted ? buildAdminUrl('admin/profile') : '#'} 
+                        href={mounted ? buildAdminUrl('profile') : '#'} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
                           if (!mounted) return
                           setShowUserMenu(false)
-                          router.push(buildAdminUrl('admin/profile'))
+                          router.push(buildAdminUrl('profile'))
                         }}
                       >
                         ข้อมูลส่วนตัว
                       </a>
                       <a
-                        href={mounted ? buildAdminUrl('admin/settings') : '#'} 
+                        href={mounted ? buildAdminUrl('settings') : '#'} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
                           if (!mounted) return
                           setShowUserMenu(false)
-                          router.push(buildAdminUrl('admin/settings'))
+                          router.push(buildAdminUrl('settings'))
                         }}
                       >
                         ตั้งค่า
