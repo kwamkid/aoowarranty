@@ -38,37 +38,37 @@ interface AdminLayoutProps {
 const sidebarItems = [
   {
     title: 'แดชบอร์ด',
-    href: '',
+    href: '/admin',
     icon: LayoutDashboard,
     iconColor: '#3b82f6' // blue-500
   },
   {
     title: 'จัดการแบรนด์',
-    href: '/brands',
+    href: '/admin/brands',
     icon: Building2,
     iconColor: '#a855f7' // purple-500
   },
   {
     title: 'จัดการสินค้า',
-    href: '/products',
+    href: '/admin/products',
     icon: Package,
     iconColor: '#22c55e' // green-500
   },
   {
     title: 'ข้อมูลการลงทะเบียน',
-    href: '/registrations',
+    href: '/admin/registrations',
     icon: FileText,
     iconColor: '#f97316' // orange-500
   },
   {
     title: 'จัดการผู้ใช้',
-    href: '/users',
+    href: '/admin/users',
     icon: Users,
     iconColor: '#ec4899' // pink-500
   },
   {
     title: 'ตั้งค่าระบบ',
-    href: '/settings',
+    href: '/admin/settings',
     icon: Settings,
     iconColor: '#6b7280' // gray-500
   }
@@ -94,7 +94,9 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   // Build URLs client-side only
   const buildAdminUrl = (path: string) => {
     if (!mounted) return '#'
-    return `/${tenant}/admin${path}`
+    // Remove leading slash from path since we're building full path
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path
+    return `/${tenant}/${cleanPath}`
   }
 
   const buildCustomerUrl = () => {
@@ -156,7 +158,7 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   // Check if path is active
   const isActiveItem = (itemHref: string) => {
     const fullPath = buildAdminUrl(itemHref)
-    if (itemHref === '') {
+    if (itemHref === '/admin') {
       // Dashboard is active only on exact match
       return pathname === fullPath
     }
@@ -322,25 +324,25 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg z-50">
                     <div className="py-2">
                       <a
-                        href={mounted ? buildAdminUrl('/profile') : '#'} 
+                        href={mounted ? buildAdminUrl('admin/profile') : '#'} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
                           if (!mounted) return
                           setShowUserMenu(false)
-                          router.push(buildAdminUrl('/profile'))
+                          router.push(buildAdminUrl('admin/profile'))
                         }}
                       >
                         ข้อมูลส่วนตัว
                       </a>
                       <a
-                        href={mounted ? buildAdminUrl('/settings') : '#'} 
+                        href={mounted ? buildAdminUrl('admin/settings') : '#'} 
                         className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 cursor-pointer"
                         onClick={(e) => {
                           e.preventDefault()
                           if (!mounted) return
                           setShowUserMenu(false)
-                          router.push(buildAdminUrl('/settings'))
+                          router.push(buildAdminUrl('admin/settings'))
                         }}
                       >
                         ตั้งค่า
