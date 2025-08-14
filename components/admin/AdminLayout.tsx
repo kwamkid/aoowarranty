@@ -116,24 +116,44 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
     console.log('window.location.pathname:', window.location.pathname)
     console.log('window.location.hostname:', window.location.hostname)
     console.log('Detected tenant:', tenant)
+    console.log('Is production:', !window.location.hostname.includes('localhost'))
     console.log('========================')
   }, [pathname, tenant])
 
-  // Build URLs based on current location
+  // Build URLs based on environment
   const buildAdminUrl = (path: string) => {
     if (!mounted) return '#'
     
-    // If empty path (dashboard), return current admin root
+    const hostname = window.location.hostname
+    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1')
+    
+    // Production: use subdomain without tenant in path
+    if (!isLocalhost) {
+      if (!path) {
+        return '/admin'
+      }
+      return `/admin/${path}`
+    }
+    
+    // Localhost: include tenant in path
     if (!path) {
       return `/${tenant}/admin`
     }
-    
-    // For other paths, append to admin base
     return `/${tenant}/admin/${path}`
   }
 
   const buildCustomerUrl = () => {
     if (!mounted) return '#'
+    
+    const hostname = window.location.hostname
+    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1')
+    
+    // Production: just root
+    if (!isLocalhost) {
+      return '/'
+    }
+    
+    // Localhost: include tenant
     return `/${tenant}`
   }
 
@@ -188,14 +208,28 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
     }
   }
 
-  // Check if path is active
+  // Check if path is active based on environment
   const isActiveItem = (itemHref: string) => {
-    if (!itemHref) {
-      // Dashboard - check if we're at admin root
-      return pathname.endsWith('/admin')
+    if (typeof window === 'undefined') return false
+    
+    const hostname = window.location.hostname
+    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1')
+    const currentPath = pathname
+    
+    // Production paths: /admin, /admin/brands, etc.
+    if (!isLocalhost) {
+      if (!itemHref) {
+        return currentPath === '/admin'
+      }
+      return currentPath === `/admin/${itemHref}`
     }
-    // Other items - check if path includes the href
-    return pathname.includes(`/admin/${itemHref}`)
+    
+    // Localhost paths: /tenant/admin, /tenant/admin/brands, etc.
+    // But usePathname might return rewritten paths
+    if (!itemHref) {
+      return currentPath === '/admin' || currentPath.endsWith('/admin')
+    }
+    return currentPath.includes(`/admin/${itemHref}`)
   }
 
   return (
