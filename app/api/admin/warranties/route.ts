@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
+import { Warranty } from '@/types'
 
 // Get admin session
 async function getAdminSession() {
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
         ...data,
         registrationDate: registrationDate instanceof Date ? registrationDate.toISOString() : registrationDate,
         status: warrantyStatus
-      }
+      } as Warranty & { registrationDate: string }
     })
     
     // Apply filters
