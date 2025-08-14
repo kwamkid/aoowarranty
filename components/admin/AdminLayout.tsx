@@ -83,42 +83,41 @@ export default function AdminLayout({ children, companyInfo, userInfo }: AdminLa
   const router = useLoadingRouter()
   const { showLoading, hideLoading } = useLoading()
 
-  // Debug pathname
-  useEffect(() => {
-    console.log('Current pathname:', pathname)
-    console.log('Tenant:', pathname.split('/')[1])
-  }, [pathname])
-
-  // Get tenant from pathname or headers
+  // Get tenant from headers or window location
   const getTenant = () => {
-    // Check if we're in a rewritten path
-    if (pathname.startsWith('/tenant/')) {
-      // Get tenant from headers if available
-      if (typeof window !== 'undefined') {
-        // Try to get from URL
-        const hostname = window.location.hostname
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname
+      const pathname = window.location.pathname
+      
+      // Check if localhost
+      if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+        // Extract from pathname: /abc-shop/admin
+        const pathParts = pathname.split('/')
+        if (pathParts[1] && pathParts[1] !== 'admin') {
+          return pathParts[1]
+        }
+      } else {
+        // Production: extract from subdomain
         const parts = hostname.split('.')
-        
-        // Check subdomain
         if (parts.length >= 3 && parts[0] !== 'www') {
           return parts[0]
         }
-        
-        // Check localhost pattern
-        const urlPath = window.location.pathname
-        const pathParts = urlPath.split('/')
-        if (pathParts[1] && pathParts[1] !== 'tenant') {
-          return pathParts[1]
-        }
       }
     }
-    
-    // Normal path
-    const pathSegments = pathname.split('/')
-    return pathSegments[1] || ''
+    return ''
   }
 
   const tenant = getTenant()
+  
+  // Debug
+  useEffect(() => {
+    console.log('=== AdminLayout Debug ===')
+    console.log('usePathname():', pathname)
+    console.log('window.location.pathname:', window.location.pathname)
+    console.log('window.location.hostname:', window.location.hostname)
+    console.log('Detected tenant:', tenant)
+    console.log('========================')
+  }, [pathname, tenant])
 
   // Build URLs based on current location
   const buildAdminUrl = (path: string) => {
